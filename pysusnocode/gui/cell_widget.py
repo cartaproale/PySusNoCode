@@ -31,6 +31,52 @@ _STATUS_TEXTS = {
 }
 
 
+def build_outputs_html(outputs: list[dict], doc: QTextDocument, t: dict, font_px: int) -> str:
+    """Gera o HTML das saídas de uma célula (formato nbformat) e registra as
+    imagens como recursos do documento. Usado na célula e no modal ampliado."""
+    parts = [
+        f"<html><body style='font-size:{font_px}px;"
+        f"color:{t['output_fg']};background:{t['output_bg']};'>"
+    ]
+    counter = 0
+    for out in outputs:
+        otype = out.get("output_type")
+        if otype == "stream":
+            color = t["stream_err_fg"] if out.get("name") == "stderr" else t["output_fg"]
+            text = html.escape(out.get("text", ""))
+            parts.append(
+                f"<pre style='color:{color};margin:2px 0;white-space:pre-wrap;'>{text}</pre>"
+            )
+        elif otype in ("execute_result", "display_data"):
+            data = out.get("data", {})
+            if "image/png" in data:
+                try:
+                    raw = base64.b64decode(data["image/png"])
+                    image = QImage.fromData(raw, "PNG")
+                    url = QUrl(f"pysusnocode://img/{counter}")
+                    counter += 1
+                    doc.addResource(QTextDocument.ImageResource, url, image)
+                    parts.append(f"<img src='{url.toString()}'><br>")
+                except Exception:  # noqa: BLE001
+                    parts.append("<i>[imagem]</i>")
+            elif "text/plain" in data:
+                text = html.escape(str(data["text/plain"]))
+                parts.append(
+                    f"<pre style='color:{t['output_fg']};margin:2px 0;"
+                    f"white-space:pre-wrap;'>{text}</pre>"
+                )
+            elif "text/html" in data:
+                parts.append(str(data["text/html"]))
+        elif otype == "error":
+            traceback = html.escape("\n".join(out.get("traceback", [])))
+            parts.append(
+                f"<pre style='color:{t['output_err_fg']};background:{t['output_err_bg']};"
+                f"padding:4px;margin:2px 0;white-space:pre-wrap;'>{traceback}</pre>"
+            )
+    parts.append("</body></html>")
+    return "".join(parts)
+
+
 class CellWidget(QFrame):
     run_requested = Signal(object)      # self
     fix_requested = Signal(object)
@@ -42,7 +88,6 @@ class CellWidget(QFrame):
         self.cell = cell
         self.t = tokens or LIGHT
         self.font_px = font_px
-        self._image_counter = 0
 
         self.setFrameShape(QFrame.StyledPanel)
         is_code = cell.kind == "code"
@@ -70,9 +115,19 @@ class CellWidget(QFrame):
             self.fix_btn.clicked.connect(lambda: self.fix_requested.emit(self))
             self.fix_btn.setVisible(False)
             header.addWidget(self.fix_btn)
+
+            self.zoom_btn = QPushButton("🔍 Ampliar")
+            self.zoom_btn.setToolTip(
+                "Ver a saída completa desta célula em uma janela grande "
+                "(gráficos e tabelas inteiros)"
+            )
+            self.zoom_btn.clicked.connect(self.open_output_dialog)
+            self.zoom_btn.setVisible(False)
+            header.addWidget(self.zoom_btn)
         else:
             self.run_btn = None
             self.fix_btn = None
+            self.zoom_btn = None
 
         copy_btn = QPushButton("📋 Copiar")
         copy_btn.setToolTip("Copiar o conteúdo desta célula (para o Colab, por exemplo)")
@@ -95,9 +150,40 @@ class CellWidget(QFrame):
         self.output_view = QTextBrowser()
         self.output_view.setVisible(False)
         self.output_view.setMaximumHeight(280)
+        self.output_view.setToolTip(
+            "Clique duas vezes (ou use 🔍 Ampliar) para ver a saída completa"
+        )
+        self.output_view.viewport().installEventFilter(self)
         layout.addWidget(self.output_view)
 
         self.apply_appearance(self.t, self.font_px)
+
+    # ------------------------------------------------------------------
+    def eventFilter(self, obj, event):  # noqa: N802
+        from PySide6.QtCore import QEvent
+
+        if (
+            obj is self.output_view.viewport()
+            and event.type() == QEvent.MouseButtonDblClick
+            and self.cell.outputs
+        ):
+            self.open_output_dialog()
+            return True
+        return super().eventFilter(obj, event)
+
+    def open_output_dialog(self) -> None:
+        if not self.cell.outputs:
+            return
+        from .output_dialog import OutputDialog
+
+        dialog = OutputDialog(
+            f"Saída — {self.title_label.text()}",
+            self.cell.outputs,
+            self.t,
+            self.font_px,
+            parent=self.window(),
+        )
+        dialog.exec()
 
     # ------------------------------------------------------------------
     # Aparência (acessibilidade)
@@ -170,52 +256,15 @@ class CellWidget(QFrame):
         self.render_outputs()
 
     def render_outputs(self) -> None:
-        t = self.t
         outputs = self.cell.outputs
-        if not outputs or self.cell.kind != "code":
+        has_outputs = bool(outputs) and self.cell.kind == "code"
+        if self.zoom_btn is not None:
+            self.zoom_btn.setVisible(has_outputs)
+        if not has_outputs:
             self.output_view.setVisible(False)
             return
-
-        doc: QTextDocument = self.output_view.document()
-        parts = [
-            f"<html><body style='font-size:{self.font_px - 1}px;"
-            f"color:{t['output_fg']};background:{t['output_bg']};'>"
-        ]
-        self._image_counter = 0
-        for out in outputs:
-            otype = out.get("output_type")
-            if otype == "stream":
-                color = t["stream_err_fg"] if out.get("name") == "stderr" else t["output_fg"]
-                text = html.escape(out.get("text", ""))
-                parts.append(
-                    f"<pre style='color:{color};margin:2px 0;white-space:pre-wrap;'>{text}</pre>"
-                )
-            elif otype in ("execute_result", "display_data"):
-                data = out.get("data", {})
-                if "image/png" in data:
-                    try:
-                        raw = base64.b64decode(data["image/png"])
-                        image = QImage.fromData(raw, "PNG")
-                        url = QUrl(f"pysusnocode://img/{self._image_counter}")
-                        self._image_counter += 1
-                        doc.addResource(QTextDocument.ImageResource, url, image)
-                        parts.append(f"<img src='{url.toString()}'><br>")
-                    except Exception:  # noqa: BLE001
-                        parts.append("<i>[imagem]</i>")
-                elif "text/plain" in data:
-                    text = html.escape(str(data["text/plain"]))
-                    parts.append(
-                        f"<pre style='color:{t['output_fg']};margin:2px 0;"
-                        f"white-space:pre-wrap;'>{text}</pre>"
-                    )
-                elif "text/html" in data:
-                    parts.append(str(data["text/html"]))
-            elif otype == "error":
-                traceback = html.escape("\n".join(out.get("traceback", [])))
-                parts.append(
-                    f"<pre style='color:{t['output_err_fg']};background:{t['output_err_bg']};"
-                    f"padding:4px;margin:2px 0;white-space:pre-wrap;'>{traceback}</pre>"
-                )
-        parts.append("</body></html>")
-        self.output_view.setHtml("".join(parts))
+        html_out = build_outputs_html(
+            outputs, self.output_view.document(), self.t, self.font_px - 1
+        )
+        self.output_view.setHtml(html_out)
         self.output_view.setVisible(True)
