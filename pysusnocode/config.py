@@ -33,6 +33,7 @@ DEFAULTS = {
     "cell_timeout": 600,       # segundos; downloads do DATASUS podem demorar
     "theme": "claro",          # "claro" | "escuro" (acessibilidade)
     "font_size": 13,           # px, para chat e células (acessibilidade)
+    "always_on_top": False,    # janela do app acima de todas as outras
 }
 
 

@@ -83,6 +83,9 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel()
         self.statusBar().addWidget(self.status_label)
 
+        if self.config["always_on_top"]:
+            self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+
         self._apply_appearance()
         self.chat.reset(WELCOME_HTML)
         self._greet_connection()
@@ -136,6 +139,14 @@ class MainWindow(QMainWindow):
         self.autotest_check.setChecked(bool(self.config["autotest"]))
         self.autotest_check.toggled.connect(self._on_autotest_toggled)
         bar.addWidget(self.autotest_check)
+
+        self.pin_check = QCheckBox(" 📌 Sempre visível ")
+        self.pin_check.setToolTip(
+            "Manter a janela do PySusNoCode acima de todas as outras janelas"
+        )
+        self.pin_check.setChecked(bool(self.config["always_on_top"]))
+        self.pin_check.toggled.connect(self._on_pin_toggled)
+        bar.addWidget(self.pin_check)
         bar.addSeparator()
 
         appearance_btn = QPushButton("🎨 Aparência")
@@ -217,6 +228,12 @@ class MainWindow(QMainWindow):
     def _on_autotest_toggled(self, checked: bool) -> None:
         self.config["autotest"] = checked
         self.config.save()
+
+    def _on_pin_toggled(self, checked: bool) -> None:
+        self.config["always_on_top"] = checked
+        self.config.save()
+        self.setWindowFlag(Qt.WindowStaysOnTopHint, checked)
+        self.show()  # mudar a flag recria a janela nativa; é preciso reexibir
 
     def on_login(self) -> None:
         cli = find_claude_cli(self.config["cli_path"])
