@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PySusNoCode — análises do DATASUS sem programar</title>
+<meta name="description" content="Baixe o PySusNoCode: crie análises de dados públicos de saúde do DATASUS (dengue, internações, mortalidade, vacinação) conversando em português com uma IA, sem programar.">
+<style>
+  :root {
+    --azul: #2b6cb0;
+    --azul-escuro: #1a4e85;
+    --azul-claro: #e6f0fa;
+    --verde: #276749;
+    --tinta: #1f2933;
+    --tinta-suave: #52606d;
+    --fundo: #f7fafc;
+    --branco: #ffffff;
+    --borda: #d9e2ec;
+    --ambar-fundo: #fffbea;
+    --ambar-borda: #f0d060;
+    --ambar-tinta: #7b5e00;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    background: var(--fundo);
+    color: var(--tinta);
+    line-height: 1.6;
+  }
+  .container { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+
+  /* ---------- topo ---------- */
+  header {
+    background: linear-gradient(160deg, var(--azul-escuro), var(--azul));
+    color: var(--branco);
+    padding: 56px 0 64px;
+    text-align: center;
+  }
+  .logo { width: 96px; height: 96px; margin-bottom: 18px; }
+  header h1 { font-size: 2.6rem; letter-spacing: -0.5px; }
+  header .slogan {
+    font-size: 1.25rem;
+    margin: 10px auto 30px;
+    max-width: 620px;
+    color: #dbeafe;
+  }
+  .btn-download {
+    display: inline-block;
+    background: var(--branco);
+    color: var(--azul-escuro);
+    font-size: 1.2rem;
+    font-weight: 700;
+    padding: 16px 42px;
+    border-radius: 10px;
+    text-decoration: none;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-download:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  }
+  .btn-download small { display: block; font-weight: 400; font-size: 0.85rem; color: var(--tinta-suave); }
+  .info-download { margin-top: 14px; font-size: 0.92rem; color: #bfdbfe; }
+
+  /* ---------- seções ---------- */
+  section { padding: 48px 0; }
+  section h2 {
+    font-size: 1.7rem;
+    color: var(--azul-escuro);
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 18px;
+  }
+  .card {
+    background: var(--branco);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    padding: 22px;
+  }
+  .card .emoji { font-size: 1.9rem; }
+  .card h3 { font-size: 1.05rem; margin: 8px 0 6px; color: var(--azul-escuro); }
+  .card p { font-size: 0.95rem; color: var(--tinta-suave); }
+
+  /* ---------- passos ---------- */
+  .passos { counter-reset: passo; max-width: 720px; margin: 0 auto; }
+  .passo {
+    background: var(--branco);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    padding: 20px 22px 20px 74px;
+    margin-bottom: 14px;
+    position: relative;
+  }
+  .passo::before {
+    counter-increment: passo;
+    content: counter(passo);
+    position: absolute;
+    left: 20px; top: 20px;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--azul);
+    color: var(--branco);
+    font-weight: 700;
+    font-size: 1.15rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .passo h3 { font-size: 1.05rem; color: var(--tinta); margin-bottom: 4px; }
+  .passo p { font-size: 0.95rem; color: var(--tinta-suave); }
+
+  .aviso {
+    max-width: 720px;
+    margin: 26px auto 0;
+    background: var(--ambar-fundo);
+    border: 1px solid var(--ambar-borda);
+    border-radius: 12px;
+    padding: 18px 22px;
+    font-size: 0.95rem;
+    color: var(--ambar-tinta);
+  }
+  .aviso strong { color: var(--ambar-tinta); }
+
+  /* ---------- requisitos / faq ---------- */
+  .lista-requisitos {
+    max-width: 620px;
+    margin: 0 auto;
+    background: var(--branco);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    padding: 24px 30px;
+    list-style: none;
+  }
+  .lista-requisitos li { padding: 7px 0 7px 30px; position: relative; }
+  .lista-requisitos li::before {
+    content: "✔";
+    position: absolute; left: 0;
+    color: var(--verde);
+    font-weight: 700;
+  }
+  details {
+    max-width: 720px;
+    margin: 0 auto 10px;
+    background: var(--branco);
+    border: 1px solid var(--borda);
+    border-radius: 10px;
+    padding: 14px 20px;
+  }
+  details summary { cursor: pointer; font-weight: 600; color: var(--azul-escuro); }
+  details p { margin-top: 8px; font-size: 0.95rem; color: var(--tinta-suave); }
+
+  .exemplos {
+    background: var(--azul-claro);
+    border-radius: 12px;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 30px;
+  }
+  .exemplos p { font-style: italic; color: var(--azul-escuro); padding: 6px 0; }
+  .exemplos p::before { content: "💬 "; font-style: normal; }
+
+  footer {
+    background: var(--tinta);
+    color: #9aa5b1;
+    text-align: center;
+    padding: 28px 20px;
+    font-size: 0.85rem;
+  }
+  footer a { color: #cbd5e0; }
+
+  @media (max-width: 560px) {
+    header h1 { font-size: 2rem; }
+    header .slogan { font-size: 1.05rem; }
+    .btn-download { font-size: 1.05rem; padding: 14px 30px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <!-- Ícone do aplicativo (SVG embutido) -->
+    <svg class="logo" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ícone do PySusNoCode">
+      <rect x="8" y="8" width="240" height="240" rx="48" fill="#ffffff" opacity="0.12"/>
+      <rect x="16" y="16" width="224" height="224" rx="42" fill="#2b6cb0" stroke="#ffffff" stroke-opacity="0.35" stroke-width="4"/>
+      <rect x="40" y="150" width="32" height="60" rx="8" fill="#ffffff" opacity="0.45"/>
+      <rect x="86" y="115" width="32" height="95" rx="8" fill="#ffffff" opacity="0.45"/>
+      <rect x="132" y="135" width="32" height="75" rx="8" fill="#ffffff" opacity="0.45"/>
+      <rect x="178" y="90" width="32" height="120" rx="8" fill="#ffffff" opacity="0.45"/>
+      <rect x="102" y="42" width="52" height="132" rx="14" fill="#ffffff"/>
+      <rect x="62" y="82" width="132" height="52" rx="14" fill="#ffffff"/>
+    </svg>
+
+    <h1>PySusNoCode</h1>
+    <p class="slogan">Crie análises de dados públicos de saúde do DATASUS conversando em português com uma IA — <strong>sem programar</strong>.</p>
+
+    <!-- ================================================================
+         EDITE AQUI ▼ : troque o valor de href pelo endereço real do
+         arquivo PySusNoCode-Setup-1.1.0.exe no seu site.
+         ================================================================ -->
+    <a class="btn-download" id="link-download" href="TROQUE-ESTE-LINK/PySusNoCode-Setup-1.1.0.exe" download>
+      ⬇ Baixar o PySusNoCode
+      <small>Versão 1.1.0 · ~14 MB · Windows 10/11 (64 bits)</small>
+    </a>
+    <p class="info-download">Instalação por usuário — <strong>não precisa de senha de administrador</strong>.</p>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+    <h2>O que ele faz</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="emoji">💬</div>
+        <h3>Você pede em português</h3>
+        <p>Descreva a análise que precisa — a IA (Claude) monta um notebook Python passo a passo, explicando cada etapa em linguagem simples.</p>
+      </div>
+      <div class="card">
+        <div class="emoji">🧪</div>
+        <h3>Ele mesmo testa o código</h3>
+        <p>Cada célula é executada na hora, dentro do próprio aplicativo. Se der erro, o app corrige sozinho antes de você seguir adiante.</p>
+      </div>
+      <div class="card">
+        <div class="emoji">🩺</div>
+        <h3>Dados oficiais do DATASUS</h3>
+        <p>Dengue e outros agravos (SINAN), internações (SIH), mortalidade (SIM), nascimentos (SINASC), vacinação (PNI) e mais, via biblioteca PySUS.</p>
+      </div>
+      <div class="card">
+        <div class="emoji">📓</div>
+        <h3>Compatível com Google Colab</h3>
+        <p>Salve o notebook como .ipynb e abra no Colab sem mudar nada, ou copie as células com um clique.</p>
+      </div>
+      <div class="card">
+        <div class="emoji">🧠</div>
+        <h3>Aprende com os erros</h3>
+        <p>Cada correção vira uma “lição” guardada no seu computador e reaproveitada nas próximas análises.</p>
+      </div>
+      <div class="card">
+        <div class="emoji">📊</div>
+        <h3>Tabelas e gráficos prontos</h3>
+        <p>Resultados aparecem como tabelas e gráficos dentro do aplicativo, prontos para usar em relatórios e boletins.</p>
+      </div>
+      <div class="card">
+        <div class="emoji">🎨</div>
+        <h3>Acessível para ler</h3>
+        <p>Botão “Aparência” com tema claro ou escuro e tamanho da letra ajustável, para leitura confortável em qualquer tela.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top: 0;">
+  <div class="container">
+    <h2>Exemplos do que você pode pedir</h2>
+    <div class="exemplos">
+      <p>“Baixar os casos de dengue notificados em 2024 e mostrar os 10 municípios com mais casos.”</p>
+      <p>“Quantas internações por asma houve no Ceará em janeiro de 2024?”</p>
+      <p>“Gráfico da mortalidade infantil em São Paulo entre 2019 e 2023.”</p>
+    </div>
+  </div>
+</section>
+
+<section style="background: var(--branco); border-top: 1px solid var(--borda); border-bottom: 1px solid var(--borda);">
+  <div class="container">
+    <h2>Como instalar</h2>
+    <div class="passos">
+      <div class="passo">
+        <h3>Baixe e execute o instalador</h3>
+        <p>Clique no botão de download acima e abra o arquivo <strong>PySusNoCode-Setup-1.1.0.exe</strong>. Não precisa de administrador.</p>
+      </div>
+      <div class="passo">
+        <h3>Aguarde a preparação do ambiente</h3>
+        <p>Na primeira instalação, uma janela instala automaticamente o Python e todas as bibliotecas (inclusive a PySUS). Leva alguns minutos e precisa de internet.</p>
+      </div>
+      <div class="passo">
+        <h3>Entre com sua conta claude.ai</h3>
+        <p>Abra o PySusNoCode pelo atalho criado, clique em <strong>“🔑 Entrar (claude.ai)”</strong> e complete o login no navegador. Se preferir, use uma chave da API da Anthropic em Configurações.</p>
+      </div>
+      <div class="passo">
+        <h3>Peça sua primeira análise</h3>
+        <p>Escreva o que você quer analisar e clique em Enviar. O notebook vai sendo montado e testado passo a passo, na sua frente.</p>
+      </div>
+    </div>
+
+    <div class="aviso">
+      <strong>⚠ Aviso do Windows (SmartScreen):</strong> por ser um aplicativo novo, o Windows
+      pode mostrar a tela azul “O Windows protegeu o seu computador”. Isso é esperado:
+      clique em <strong>“Mais informações”</strong> e depois em
+      <strong>“Executar assim mesmo”</strong> para continuar a instalação.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>Requisitos</h2>
+    <ul class="lista-requisitos">
+      <li>Windows 10 ou 11 de 64 bits</li>
+      <li>Conexão com a internet (instalação e uso)</li>
+      <li>Conta <strong>claude.ai</strong> (planos Pro/Max) <em>ou</em> chave da API da Anthropic</li>
+      <li>Cerca de 2 GB de espaço livre em disco</li>
+    </ul>
+  </div>
+</section>
+
+<section style="padding-top: 0;">
+  <div class="container">
+    <h2>Perguntas frequentes</h2>
+    <details>
+      <summary>Preciso saber programar?</summary>
+      <p>Não. Você conversa em português e o aplicativo cria e testa o código Python para você. Cada célula vem com uma explicação em linguagem simples.</p>
+    </details>
+    <details>
+      <summary>O aplicativo mexe no Python ou em outros programas do meu computador?</summary>
+      <p>Não. Ele instala um Python exclusivo dentro da própria pasta do aplicativo (AppData\Local\Programs\PySusNoCode) e não altera nada do sistema. A desinstalação é feita normalmente por “Aplicativos instalados”.</p>
+    </details>
+    <details>
+      <summary>De onde vêm os dados?</summary>
+      <p>Dos servidores públicos oficiais do DATASUS/Ministério da Saúde, acessados pela biblioteca de código aberto <a href="https://pysus.readthedocs.io" target="_blank" rel="noopener">PySUS</a>. Os arquivos baixados ficam no seu computador.</p>
+    </details>
+    <details>
+      <summary>Posso usar os notebooks no Google Colab?</summary>
+      <p>Sim. Use “💾 Salvar .ipynb” e faça upload do arquivo no Colab, ou “📋 Copiar tudo” e cole em um notebook vazio. A primeira célula instala a PySUS automaticamente.</p>
+    </details>
+    <details>
+      <summary>Quanto custa?</summary>
+      <p>O aplicativo em si é gratuito. Para conversar com a IA é preciso uma assinatura claude.ai (Pro/Max) ou créditos na API da Anthropic — cobrados diretamente pela Anthropic.</p>
+    </details>
+  </div>
+</section>
+
+<footer>
+  <p><strong>PySusNoCode</strong> — análises do DATASUS sem programar.</p>
+  <p style="margin-top: 6px;">Componentes de fontes oficiais: Python (python.org) · bibliotecas (PyPI) · Claude Code (claude.ai) · dados (DATASUS).</p>
+</footer>
+
+</body>
+</html>
+

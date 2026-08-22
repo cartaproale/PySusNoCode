@@ -1,0 +1,7 @@
+# ambiente local
+.venv/
+__pycache__/
+*.pyc
+
+# artefatos de compilação do instalador (publicados via GitHub Releases)
+installer/Output/

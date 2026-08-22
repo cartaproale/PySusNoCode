@@ -1,0 +1,92 @@
+# PySusNoCode
+
+Aplicativo desktop para **Windows** que permite a profissionais de saúde criarem
+análises de dados públicos do **DATASUS** (dengue, mortalidade, internações,
+nascimentos, vacinação…) **sem saber programar**, conversando com o Claude —
+como no Claude Code, mas com um único propósito: gerar notebooks Python com a
+biblioteca [PySUS](https://pysus.readthedocs.io/en/latest/).
+
+## O que ele faz
+
+- 💬 **Chat em português**: você descreve a análise ("casos de dengue em 2024
+  por município") e o Claude cria o notebook **passo a passo**, uma célula por vez.
+- 🧪 **Autoteste**: cada célula criada é executada automaticamente num kernel
+  Python embutido (o mesmo motor do Jupyter/Colab). Se der erro, o aplicativo
+  manda o erro de volta ao Claude e **corrige sozinho** (até 3 tentativas).
+- 🧠 **Aprende com os erros**: cada correção gera uma "lição" gravada em disco
+  e reaproveitada nas próximas conversas (memória entre sessões).
+- 📓 **Notebook de verdade**: as células podem ser editadas, executadas uma a
+  uma, copiadas individualmente, ou exportadas como **.ipynb** para abrir no
+  **Google Colab** sem nenhuma alteração.
+- 🔑 **Sua conta claude.ai**: usa o login do Claude Code (botão
+  "Entrar (claude.ai)") — ou, alternativamente, uma chave da API da Anthropic.
+- 🎛 **Escolha do modelo**: Claude Opus 5 (padrão), Sonnet 5, Haiku 4.5,
+  Fable 5 ou o padrão do Claude Code.
+- 🎨 **Acessibilidade (botão "Aparência")**: tema **Claro** ou **Escuro** e
+  **tamanho da letra** ajustável (11–24 px) para chat, células e toda a
+  interface. Todas as cores de texto são explícitas — o app fica legível
+  independentemente do modo claro/escuro do Windows.
+
+## Instalador para distribuição
+
+Para instalar em qualquer computador Windows 10/11 64 bits, use o instalador
+único `installer\Output\PySusNoCode-Setup-1.1.0.exe` (veja
+`installer\LEIA-ME-DISTRIBUICAO.md` para publicá-lo no seu site e gerar novas
+versões). Ele instala o Python embarcado, todas as bibliotecas e, opcionalmente,
+o Claude Code — sem precisar de administrador.
+
+## Como iniciar (nesta pasta de desenvolvimento)
+
+Dê dois cliques em **`PySusNoCode.bat`**.
+
+Na primeira execução ele cria o ambiente Python (pasta `.venv`) e instala as
+dependências — demora alguns minutos. Nas execuções seguintes abre direto.
+
+> Pré-requisito: Python 3.10+ instalado (https://python.org). Neste computador
+> o ambiente já foi criado e testado com o Python 3.12.
+
+## Conexão com o Claude
+
+Dois modos (mude na barra superior, em "Conexão"):
+
+1. **Conta claude.ai (Claude Code)** — recomendado. Usa o CLI do Claude Code e
+   o login da sua conta claude.ai (Pro/Max). Se ainda não estiver logado,
+   clique em **"🔑 Entrar (claude.ai)"** e complete o login na janela que abre.
+   Se o Claude Code não estiver instalado, use **Configurações → Instalar
+   Claude Code**.
+2. **API Anthropic (chave)** — informe uma chave de `console.anthropic.com` em
+   **Configurações**. Neste modo, para os modelos Opus 5 e Fable 5 o aplicativo
+   ativa o *fallback automático de recusa* recomendado pela Anthropic (se o
+   modelo recusar por segurança, a mesma solicitação é reexecutada no
+   Claude Opus 4.8 dentro da própria chamada).
+
+## Usando no Google Colab
+
+- **💾 Salvar .ipynb** e depois, no [Colab](https://colab.research.google.com),
+  `Upload` do arquivo; **ou**
+- **📋 Copiar tudo** e colar num notebook vazio.
+
+A primeira célula gerada é sempre `%pip install pysus -q`, então o notebook
+funciona em qualquer ambiente.
+
+## Onde ficam os dados do aplicativo
+
+- Configurações e memória de lições: `%APPDATA%\PySusNoCode\`
+  (`config.json`, `lessons.json`)
+- Notebooks salvos (sugestão padrão): `Documentos\PySusNoCode\`
+- Dados baixados do DATASUS (cache do PySUS): `%USERPROFILE%\pysus`
+
+## Estrutura do código
+
+```
+pysusnocode/
+├── __main__.py        # python -m pysusnocode
+├── config.py          # configurações persistentes + localização do CLI
+├── lessons.py         # memória de lições aprendidas (aprendizado entre sessões)
+├── prompts.py         # prompt de sistema (especialista PySUS 2.x) e prompts de correção
+├── protocol.py        # extrai células (###CELULA:...###) e lições das respostas
+├── llm.py             # backends: Claude Agent SDK (claude.ai) e API Anthropic
+├── kernel.py          # kernel Jupyter embutido (execução real das células)
+├── nb.py              # modelo do notebook + exportação .ipynb (Colab)
+└── gui/               # interface PySide6 (chat, notebook, células, configurações)
+```

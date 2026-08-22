@@ -1,0 +1,9 @@
+PySide6>=6.6
+anthropic>=0.40
+claude-agent-sdk>=0.2
+jupyter_client>=8
+ipykernel>=6
+nbformat>=5
+pysus>=2.9
+matplotlib>=3.8
+openpyxl>=3.1
