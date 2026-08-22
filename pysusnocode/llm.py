@@ -11,6 +11,8 @@ uma thread de trabalho da interface.
 
 from __future__ import annotations
 
+import subprocess
+import sys
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -18,6 +20,31 @@ from pathlib import Path
 from .config import BACKEND_AGENT, BACKEND_API, Config, find_claude_cli
 
 OnChunk = Callable[[str], None]
+
+_no_window_patched = False
+
+
+def _patch_subprocess_no_window() -> None:
+    """No Windows, o Agent SDK cria o processo do CLI do Claude Code sem
+    CREATE_NO_WINDOW; como o aplicativo roda sem console (pythonw), o Windows
+    abre uma janela de console preta por cima do app a cada interação. Este
+    patch adiciona a flag na criação do processo — a comunicação continua por
+    pipes, só a janela deixa de existir."""
+    global _no_window_patched
+    if _no_window_patched or sys.platform != "win32":
+        return
+    import anyio
+
+    original = anyio.open_process
+
+    async def _open_process_sem_janela(*args, **kwargs):
+        kwargs["creationflags"] = (
+            kwargs.get("creationflags", 0) | subprocess.CREATE_NO_WINDOW
+        )
+        return await original(*args, **kwargs)
+
+    anyio.open_process = _open_process_sem_janela
+    _no_window_patched = True
 
 
 class LLMError(Exception):
@@ -47,6 +74,7 @@ class AgentSDKBackend:
     ) -> str:
         import asyncio
 
+        _patch_subprocess_no_window()
         try:
             return asyncio.run(
                 self._send_async(user_text, system_prompt, model, on_chunk, cancel)
