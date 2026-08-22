@@ -21,6 +21,11 @@ permissions:
   contents: write
   actions: read
 
+# O contexto `secrets` nao pode ser usado em `if:` de passos; o teste de
+# "assinatura configurada" e feito por esta variavel de ambiente.
+env:
+  SIGNPATH_CONFIGURADO: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+
 jobs:
   build:
     runs-on: windows-latest
@@ -67,14 +72,14 @@ jobs:
       # SIGNPATH_SIGNING_POLICY_SLUG. Veja installer/ASSINATURA-DIGITAL.md.
       - name: Enviar artefato para assinatura (SignPath)
         id: upload-unsigned
-        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        if: ${{ env.SIGNPATH_CONFIGURADO == 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: instalador-nao-assinado
           path: installer/Output/PySusNoCode-Setup-${{ steps.ver.outputs.version }}.exe
 
       - name: Assinar o instalador (SignPath)
-        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        if: ${{ env.SIGNPATH_CONFIGURADO == 'true' }}
         uses: signpath/github-action-submit-signing-request@v2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -86,7 +91,7 @@ jobs:
           output-artifact-directory: installer/Output/assinado
 
       - name: Substituir pelo instalador assinado (SignPath)
-        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        if: ${{ env.SIGNPATH_CONFIGURADO == 'true' }}
         shell: pwsh
         run: |
           Copy-Item "installer/Output/assinado/PySusNoCode-Setup-${{ steps.ver.outputs.version }}.exe" `
