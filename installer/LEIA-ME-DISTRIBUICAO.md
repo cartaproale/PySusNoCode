@@ -1,8 +1,31 @@
 # Distribuindo o PySusNoCode no seu site
 
-## O arquivo para publicar
+## Hospedagem oficial: GitHub Releases
 
-Depois de compilar, o arquivo único para colocar no site é:
+O instalador fica publicado em **github.com/cartaproale/PySusNoCode** (Releases).
+Links de download:
+
+- **Permanente (sempre a versão mais recente — use este no site):**
+  `https://github.com/cartaproale/PySusNoCode/releases/latest/download/PySusNoCode-Setup.exe`
+- Versão específica:
+  `https://github.com/cartaproale/PySusNoCode/releases/download/v1.1.0/PySusNoCode-Setup-1.1.0.exe`
+
+A página `site\download.html` já usa o link permanente. Cada release traz o
+instalador com dois nomes: o versionado e a cópia `PySusNoCode-Setup.exe` de
+nome fixo (é ela que mantém o link permanente funcionando).
+
+### Publicando uma nova versão na Release
+
+Depois de compilar o novo Setup (passos abaixo), rode no PowerShell, na pasta
+do projeto (o `gh` usa o token do Gerenciador de Credenciais do Git):
+
+```bash
+Copy-Item "installer\Output\PySusNoCode-Setup-X.Y.Z.exe" "$env:TEMP\PySusNoCode-Setup.exe" -Force; $out = "protocol=https`nhost=github.com`n" | git credential fill; $env:GH_TOKEN = ($out | Select-String '^password=(.+)$').Matches.Groups[1].Value; & "C:\Program Files\GitHub CLI\gh.exe" release create vX.Y.Z "installer\Output\PySusNoCode-Setup-X.Y.Z.exe" "$env:TEMP\PySusNoCode-Setup.exe" --title "PySusNoCode X.Y.Z" --notes "Descreva as novidades aqui"
+```
+
+## O arquivo do instalador
+
+Depois de compilar, o arquivo único gerado é:
 
 ```
 installer\Output\PySusNoCode-Setup-1.1.0.exe   (~14 MB)
