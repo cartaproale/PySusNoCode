@@ -14,9 +14,33 @@ A página `site\download.html` já usa o link permanente. Cada release traz o
 instalador com dois nomes: o versionado e a cópia `PySusNoCode-Setup.exe` de
 nome fixo (é ela que mantém o link permanente funcionando).
 
-### Publicando uma nova versão na Release
+### Publicando uma nova versão (AUTOMÁTICO via GitHub Actions)
 
-Depois de compilar o novo Setup (passos abaixo), rode no PowerShell, na pasta
+O workflow `.github/workflows/build-installer.yml` compila o instalador e
+publica a Release sozinho a cada tag de versão. Para lançar a versão X.Y.Z:
+
+1. Atualize `__version__` em `pysusnocode\__init__.py` e o padrão de
+   `MyAppVersion` em `installer\PySusNoCode.iss` para `X.Y.Z`;
+2. Commit e push:
+
+```bash
+git add -A; git commit -m "Versao X.Y.Z"; git push
+```
+
+3. Crie e envie a tag (é ela que dispara a compilação):
+
+```bash
+git tag vX.Y.Z; git push origin vX.Y.Z
+```
+
+Em ~3 minutos a Release aparece com os dois arquivos e o link permanente do
+site passa a servir a versão nova automaticamente. Se a tag não bater com o
+`__version__` do aplicativo, o workflow falha de propósito com uma mensagem
+explicando o que corrigir (aba Actions do repositório).
+
+### Publicando manualmente (alternativa, sem Actions)
+
+Depois de compilar o novo Setup localmente, rode no PowerShell, na pasta
 do projeto (o `gh` usa o token do Gerenciador de Credenciais do Git):
 
 ```bash

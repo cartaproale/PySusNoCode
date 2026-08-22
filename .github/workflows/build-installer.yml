@@ -1,0 +1,80 @@
+# ===========================================================================
+#  Compila o instalador do PySusNoCode e publica a Release automaticamente
+#  a cada tag de versao (vX.Y.Z).
+#
+#  Como lancar uma versao:
+#    1. Atualize __version__ em pysusnocode/__init__.py (ex.: "1.2.0")
+#       e o padrao em installer/PySusNoCode.iss
+#    2. git commit + git push
+#    3. git tag v1.2.0 && git push origin v1.2.0
+#  O resto e automatico: o instalador compilado entra na Release com o nome
+#  versionado e com a copia de nome fixo PySusNoCode-Setup.exe (que mantem o
+#  link permanente releases/latest/download/PySusNoCode-Setup.exe).
+# ===========================================================================
+name: Compilar instalador
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v4
+
+      - name: Determinar a versao a partir da tag
+        id: ver
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Versao: $version"
+
+      - name: Conferir se a versao do aplicativo bate com a tag
+        shell: pwsh
+        run: |
+          $m = Select-String -Path "pysusnocode/__init__.py" -Pattern '__version__ = "(.+)"'
+          $appVer = $m.Matches.Groups[1].Value
+          if ($appVer -ne "${{ steps.ver.outputs.version }}") {
+            Write-Error ("A tag v${{ steps.ver.outputs.version }} nao bate com " +
+              "pysusnocode/__init__.py (__version__ = `"$appVer`"). " +
+              "Atualize __version__, faca commit e recrie a tag.")
+          }
+
+      - name: Garantir o Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+
+      - name: Compilar o instalador
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            /DMyAppVersion=${{ steps.ver.outputs.version }} `
+            "installer\PySusNoCode.iss"
+
+      - name: Criar a copia de nome fixo (link permanente)
+        shell: pwsh
+        run: |
+          Copy-Item "installer/Output/PySusNoCode-Setup-${{ steps.ver.outputs.version }}.exe" `
+            "installer/Output/PySusNoCode-Setup.exe"
+          Get-ChildItem "installer/Output"
+
+      - name: Publicar a Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            "installer/Output/PySusNoCode-Setup-${{ steps.ver.outputs.version }}.exe" `
+            "installer/Output/PySusNoCode-Setup.exe" `
+            --title "PySusNoCode ${{ steps.ver.outputs.version }}" `
+            --generate-notes `
+            --notes "Instalador para Windows 10/11 (64 bits). Instala por usuario (sem administrador): Python embarcado, PySUS e todas as bibliotecas, com opcao de instalar o Claude Code para login com conta claude.ai. O arquivo PySusNoCode-Setup.exe e uma copia identica com nome fixo, usada pelo link permanente de download."
