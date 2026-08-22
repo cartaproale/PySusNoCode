@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   build:
@@ -59,6 +60,38 @@ jobs:
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
             /DMyAppVersion=${{ steps.ver.outputs.version }} `
             "installer\PySusNoCode.iss"
+
+      # ---- Assinatura digital via SignPath (dormente ate os secrets existirem) ----
+      # Ativa sozinha quando os 4 secrets estiverem configurados no repositorio:
+      # SIGNPATH_API_TOKEN, SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_SLUG,
+      # SIGNPATH_SIGNING_POLICY_SLUG. Veja installer/ASSINATURA-DIGITAL.md.
+      - name: Enviar artefato para assinatura (SignPath)
+        id: upload-unsigned
+        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: instalador-nao-assinado
+          path: installer/Output/PySusNoCode-Setup-${{ steps.ver.outputs.version }}.exe
+
+      - name: Assinar o instalador (SignPath)
+        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ secrets.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: installer/Output/assinado
+
+      - name: Substituir pelo instalador assinado (SignPath)
+        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        shell: pwsh
+        run: |
+          Copy-Item "installer/Output/assinado/PySusNoCode-Setup-${{ steps.ver.outputs.version }}.exe" `
+            "installer/Output/PySusNoCode-Setup-${{ steps.ver.outputs.version }}.exe" -Force
+          Write-Host "Instalador substituido pela versao assinada."
 
       - name: Criar a copia de nome fixo (link permanente)
         shell: pwsh

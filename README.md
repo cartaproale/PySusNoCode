@@ -81,6 +81,17 @@ funciona em qualquer ambiente.
 - Notebooks salvos (sugestão padrão): `Documentos\PySusNoCode\`
 - Dados baixados do DATASUS (cache do PySUS): `%USERPROFILE%\pysus`
 
+## About (English)
+
+**PySusNoCode** is a Windows desktop app that lets Brazilian health
+professionals analyze public health data from DATASUS (Brazil's national
+health-data repository) by chatting in Portuguese with an AI (Claude). It
+builds Jupyter-compatible notebooks step by step using the open-source
+[PySUS](https://pysus.readthedocs.io) library, runs and auto-fixes every cell
+in an embedded kernel, and exports Google Colab-ready `.ipynb` files. Licensed
+under MIT; installers are built from source by GitHub Actions on every version
+tag and published to GitHub Releases.
+
 ## Estrutura do código
 
 ```
