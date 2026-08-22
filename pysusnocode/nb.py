@@ -45,7 +45,10 @@ class Notebook:
         self.cells.clear()
 
     # ------------------------------------------------------------------
-    def to_ipynb(self) -> dict:
+    def to_ipynb(self, extra_metadata: dict | None = None) -> dict:
+        """Gera o notebook nbformat. `extra_metadata` (ex.: contexto do chat)
+        é guardado em metadata["pysusnocode"] — ignorado pelo Colab/Jupyter,
+        mas restaurado quando o arquivo é reaberto no PySusNoCode."""
         import nbformat
         from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
 
@@ -65,27 +68,45 @@ class Notebook:
                 code_cell["outputs"] = outputs
                 nb_cells.append(code_cell)
 
-        notebook = new_notebook(
-            cells=nb_cells,
-            metadata={
-                "kernelspec": {
-                    "display_name": "Python 3",
-                    "language": "python",
-                    "name": "python3",
-                },
-                "language_info": {"name": "python"},
-                "colab": {"provenance": []},
+        metadata = {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3",
             },
-        )
+            "language_info": {"name": "python"},
+            "colab": {"provenance": []},
+        }
+        if extra_metadata:
+            metadata["pysusnocode"] = extra_metadata
+
+        notebook = new_notebook(cells=nb_cells, metadata=metadata)
         return notebook
 
-    def save_ipynb(self, path: str | Path) -> None:
+    def save_ipynb(self, path: str | Path, extra_metadata: dict | None = None) -> None:
         import nbformat
 
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as handle:
-            nbformat.write(self.to_ipynb(), handle)
+            nbformat.write(self.to_ipynb(extra_metadata), handle)
+
+    def load_ipynb(self, path: str | Path) -> dict:
+        """Carrega um .ipynb neste notebook (substituindo as células) e devolve
+        os metadados do PySusNoCode salvos nele ({} se não houver)."""
+        import nbformat
+
+        nb = nbformat.read(str(path), as_version=4)
+        self.cells.clear()
+        for nb_cell in nb.cells:
+            if nb_cell.cell_type == "markdown":
+                self.add("markdown", nb_cell.source)
+            elif nb_cell.cell_type == "code":
+                cell = self.add("code", nb_cell.source)
+                cell.outputs = [dict(out) for out in nb_cell.get("outputs", [])]
+                cell.execution_count = nb_cell.get("execution_count")
+        meta = nb.metadata.get("pysusnocode", {})
+        return dict(meta) if meta else {}
 
     # ------------------------------------------------------------------
     def as_clipboard_text(self) -> str:

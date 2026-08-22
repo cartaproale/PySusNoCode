@@ -7,7 +7,6 @@ import webbrowser
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
-    QFileDialog,
     QHBoxLayout,
     QLabel,
     QMessageBox,
@@ -17,7 +16,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..config import NOTEBOOKS_DIR
 from ..nb import Cell, Notebook
 from ..theme import LIGHT
 from .cell_widget import CellWidget
@@ -29,6 +27,9 @@ class NotebookPanel(QWidget):
     run_all_requested = Signal()
     restart_kernel_requested = Signal()
     cell_deleted = Signal(object)            # Cell
+    save_requested = Signal()
+    open_requested = Signal()
+    changed = Signal()                       # qualquer alteração no notebook
 
     def __init__(self, notebook: Notebook, parent=None):
         super().__init__(parent)
@@ -54,9 +55,18 @@ class NotebookPanel(QWidget):
         add_btn.clicked.connect(self._add_empty_cell)
         header.addWidget(add_btn)
 
-        save_btn = QPushButton("💾 Salvar .ipynb")
-        save_btn.setToolTip("Salvar o notebook em um arquivo .ipynb (abre no Google Colab e no Jupyter)")
-        save_btn.clicked.connect(self.save_ipynb)
+        open_btn = QPushButton("📂 Abrir")
+        open_btn.setToolTip(
+            "Abrir um notebook .ipynb salvo anteriormente (restaura também a conversa)"
+        )
+        open_btn.clicked.connect(self.open_requested.emit)
+        header.addWidget(open_btn)
+
+        save_btn = QPushButton("💾 Salvar")
+        save_btn.setToolTip(
+            "Salvar o notebook (.ipynb) com a conversa junto — abre no Colab e no Jupyter"
+        )
+        save_btn.clicked.connect(self.save_requested.emit)
         header.addWidget(save_btn)
 
         copy_btn = QPushButton("📋 Copiar tudo")
@@ -117,6 +127,7 @@ class NotebookPanel(QWidget):
         widget.run_requested.connect(self.run_cell_requested.emit)
         widget.fix_requested.connect(self.fix_cell_requested.emit)
         widget.delete_requested.connect(self._on_delete)
+        widget.edited.connect(lambda _w: self.changed.emit())
         self.widgets.append(widget)
         self.cells_layout.addWidget(widget)
         self.renumber()
@@ -126,6 +137,7 @@ class NotebookPanel(QWidget):
     def _add_empty_cell(self) -> None:
         cell = self.notebook.add("code", "")
         self.add_cell(cell)
+        self.changed.emit()
 
     def _on_delete(self, widget: CellWidget) -> None:
         answer = QMessageBox.question(
@@ -141,6 +153,7 @@ class NotebookPanel(QWidget):
         widget.setParent(None)
         widget.deleteLater()
         self.cell_deleted.emit(widget.cell)
+        self.changed.emit()
         self.renumber()
         if not self.widgets:
             self.empty_label.setVisible(True)
@@ -167,31 +180,6 @@ class NotebookPanel(QWidget):
         self.empty_label.setVisible(True)
 
     # ------------------------------------------------------------------
-    def save_ipynb(self) -> None:
-        if not self.notebook.cells:
-            QMessageBox.information(self, "Notebook vazio", "Ainda não há células para salvar.")
-            return
-        NOTEBOOKS_DIR.mkdir(parents=True, exist_ok=True)
-        path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Salvar notebook",
-            str(NOTEBOOKS_DIR / "analise_pysus.ipynb"),
-            "Notebook Jupyter (*.ipynb)",
-        )
-        if not path:
-            return
-        try:
-            self.notebook.save_ipynb(path)
-        except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Erro ao salvar", f"Não consegui salvar o notebook:\n{exc}")
-            return
-        QMessageBox.information(
-            self,
-            "Notebook salvo",
-            f"Notebook salvo em:\n{path}\n\nPara usar no Google Colab: abra "
-            "colab.research.google.com, clique em “Upload” e escolha esse arquivo.",
-        )
-
     def _copy_all(self) -> None:
         if not self.notebook.cells:
             QMessageBox.information(self, "Notebook vazio", "Ainda não há células para copiar.")

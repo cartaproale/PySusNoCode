@@ -243,3 +243,17 @@ class ChatPanel(QWidget):
         self._streaming = False
         self._stream_buffer = ""
         self.add_html("app", welcome_html)
+
+    # --- persistência do contexto (salvo nos metadados do .ipynb) ------
+    def export_entries(self) -> list[list[str]]:
+        return [[role, content] for role, content in self.entries]
+
+    def restore_entries(self, entries: list) -> None:
+        self.entries = [
+            (str(item[0]), str(item[1]))
+            for item in entries
+            if isinstance(item, (list, tuple)) and len(item) == 2
+        ]
+        self._streaming = False
+        self._stream_buffer = ""
+        self._render()

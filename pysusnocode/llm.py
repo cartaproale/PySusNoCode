@@ -79,7 +79,22 @@ class AgentSDKBackend:
             return asyncio.run(
                 self._send_async(user_text, system_prompt, model, on_chunk, cancel)
             )
-        except LLMError:
+        except LLMError as exc:
+            # Sessão restaurada de um notebook antigo pode não existir mais no
+            # Claude Code; recomeça a conversa e tenta uma vez sem o resume.
+            low = str(exc).lower()
+            if self.session_id and any(
+                k in low for k in ("session", "conversation", "resume", "sessao")
+            ):
+                self.session_id = None
+                try:
+                    return asyncio.run(
+                        self._send_async(user_text, system_prompt, model, on_chunk, cancel)
+                    )
+                except LLMError:
+                    raise
+                except Exception as exc2:  # noqa: BLE001
+                    raise LLMError(self._friendly(exc2)) from exc2
             raise
         except Exception as exc:  # noqa: BLE001
             raise LLMError(self._friendly(exc)) from exc

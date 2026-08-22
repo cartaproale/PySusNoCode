@@ -18,6 +18,10 @@ biblioteca [PySUS](https://pysus.readthedocs.io/en/latest/).
 - 📓 **Notebook de verdade**: as células podem ser editadas, executadas uma a
   uma, copiadas individualmente, ou exportadas como **.ipynb** para abrir no
   **Google Colab** sem nenhuma alteração.
+- 💾 **Continue de onde parou**: ao salvar, a conversa do chat vai junto,
+  dentro do próprio arquivo `.ipynb` (metadados). O botão **“📂 Abrir”**
+  restaura o notebook **e** o contexto da conversa; ao fechar com alterações
+  não salvas, o aplicativo pergunta se deseja salvar.
 - 🔑 **Sua conta claude.ai**: usa o login do Claude Code (botão
   "Entrar (claude.ai)") — ou, alternativamente, uma chave da API da Anthropic.
 - 🎛 **Escolha do modelo**: Claude Opus 5 (padrão), Sonnet 5, Haiku 4.5,

@@ -8,11 +8,14 @@ tentativas) → registra a lição aprendida para as próximas sessões.
 from __future__ import annotations
 
 import subprocess
+from datetime import datetime
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QFileDialog,
     QLabel,
     QMainWindow,
     QMessageBox,
@@ -22,7 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import APP_NAME, __version__
-from ..config import BACKEND_AGENT, BACKEND_API, MODELS, Config, find_claude_cli
+from ..config import BACKEND_AGENT, BACKEND_API, MODELS, NOTEBOOKS_DIR, Config, find_claude_cli
 from ..kernel import NotebookKernel
 from ..lessons import LessonStore
 from ..llm import make_backend
@@ -59,8 +62,10 @@ class MainWindow(QMainWindow):
         self.llm_worker: LLMWorker | None = None
         self.cell_worker: CellRunWorker | None = None
         self.kernel_worker: KernelStartWorker | None = None
+        self.saved_path: Path | None = None
+        self.dirty = False
 
-        self.setWindowTitle(f"{APP_NAME} {__version__} — análises do DATASUS sem programar")
+        self._update_title()
         self.resize(1360, 840)
 
         self._build_toolbar()
@@ -76,6 +81,9 @@ class MainWindow(QMainWindow):
         self.notebook_panel.fix_cell_requested.connect(self.on_fix_cell_clicked)
         self.notebook_panel.run_all_requested.connect(self.on_run_all)
         self.notebook_panel.restart_kernel_requested.connect(self.on_restart_kernel)
+        self.notebook_panel.save_requested.connect(self.on_save_notebook)
+        self.notebook_panel.open_requested.connect(self.on_open_notebook)
+        self.notebook_panel.changed.connect(self._mark_dirty)
         splitter.addWidget(self.notebook_panel)
         splitter.setSizes([520, 840])
         self.setCentralWidget(splitter)
@@ -283,24 +291,179 @@ class MainWindow(QMainWindow):
                 self, "Aguarde", "Espere a tarefa atual terminar (ou clique em ⏹ Parar)."
             )
             return
-        if self.notebook.cells:
-            answer = QMessageBox.question(
-                self,
-                "Nova conversa",
-                "Começar uma nova conversa e um notebook em branco?\n"
-                "(Salve o notebook atual antes, se quiser mantê-lo.)",
-                QMessageBox.Yes | QMessageBox.No,
-            )
-            if answer != QMessageBox.Yes:
-                return
+        if not self._resolve_unsaved("antes de começar uma nova conversa"):
+            return
         self.notebook.clear()
         self.notebook_panel.clear()
         self.backend.reset()
         self.exec_notes = []
         self.fixing_cell = None
         self.pending_queue = []
+        self.saved_path = None
+        self.dirty = False
+        self._update_title()
         self.chat.reset(WELCOME_HTML)
         self._greet_connection()
+
+    # ------------------------------------------------------------------
+    # Salvar / abrir notebook (com o contexto da conversa)
+    # ------------------------------------------------------------------
+    def _mark_dirty(self) -> None:
+        if not self.dirty:
+            self.dirty = True
+            self._update_title()
+
+    def _update_title(self) -> None:
+        name = self.saved_path.name if self.saved_path else "notebook novo"
+        star = " •" if self.dirty else ""
+        self.setWindowTitle(
+            f"{APP_NAME} {__version__} — {name}{star} — análises do DATASUS sem programar"
+        )
+
+    def _context_metadata(self) -> dict:
+        meta = {
+            "versao": __version__,
+            "salvo_em": datetime.now().isoformat(timespec="seconds"),
+            "conexao": self.config["backend"],
+            "chat": self.chat.export_entries(),
+        }
+        session_id = getattr(self.backend, "session_id", None)
+        if session_id:
+            meta["sessao_claude"] = session_id
+        history = getattr(self.backend, "history", None)
+        if history:
+            meta["historico_api"] = history
+        return meta
+
+    def on_save_notebook(self) -> bool:
+        """Salva o notebook (.ipynb) com o contexto do chat nos metadados.
+        Devolve True se o arquivo foi salvo."""
+        if not self.notebook.cells:
+            QMessageBox.information(
+                self, "Notebook vazio", "Ainda não há células para salvar."
+            )
+            return False
+        path = self.saved_path
+        first_save = path is None
+        if first_save:
+            NOTEBOOKS_DIR.mkdir(parents=True, exist_ok=True)
+            chosen, _ = QFileDialog.getSaveFileName(
+                self,
+                "Salvar notebook",
+                str(NOTEBOOKS_DIR / "analise_pysus.ipynb"),
+                "Notebook Jupyter (*.ipynb)",
+            )
+            if not chosen:
+                return False
+            path = Path(chosen)
+        try:
+            self.notebook.save_ipynb(path, self._context_metadata())
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(
+                self, "Erro ao salvar", f"Não consegui salvar o notebook:\n{exc}"
+            )
+            return False
+        self.saved_path = path
+        self.dirty = False
+        self._update_title()
+        self.statusBar().showMessage(f"💾 Notebook salvo em {path}", 8000)
+        if first_save:
+            QMessageBox.information(
+                self,
+                "Notebook salvo",
+                f"Notebook salvo em:\n{path}\n\nA conversa foi salva junto: ao abrir "
+                "este arquivo pelo botão “📂 Abrir”, o chat volta de onde parou.\n\n"
+                "Para usar no Google Colab: abra colab.research.google.com, clique "
+                "em “Upload” e escolha esse arquivo.",
+            )
+        return True
+
+    def on_open_notebook(self) -> None:
+        if self.phase != PHASE_IDLE:
+            QMessageBox.information(self, "Aguarde", "Espere a tarefa atual terminar.")
+            return
+        if not self._resolve_unsaved("antes de abrir outro notebook"):
+            return
+        start_dir = NOTEBOOKS_DIR if NOTEBOOKS_DIR.exists() else Path.home()
+        chosen, _ = QFileDialog.getOpenFileName(
+            self, "Abrir notebook", str(start_dir), "Notebook Jupyter (*.ipynb)"
+        )
+        if not chosen:
+            return
+
+        from ..nb import Notebook
+
+        temp = Notebook()
+        try:
+            meta = temp.load_ipynb(chosen)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(
+                self, "Erro ao abrir", f"Não consegui abrir o notebook:\n{exc}"
+            )
+            return
+
+        self.notebook_panel.clear()
+        self.notebook.cells = temp.cells
+        for cell in self.notebook.cells:
+            self.notebook_panel.add_cell(cell)
+
+        self.backend.reset()
+        if meta.get("sessao_claude") and hasattr(self.backend, "session_id"):
+            self.backend.session_id = meta["sessao_claude"]
+        if meta.get("historico_api") and hasattr(self.backend, "history"):
+            self.backend.history = meta["historico_api"]
+
+        if meta.get("chat"):
+            self.chat.restore_entries(meta["chat"])
+            contexto = "a conversa anterior foi restaurada"
+        else:
+            self.chat.reset(WELCOME_HTML)
+            contexto = "este arquivo não tinha conversa salva"
+
+        self.exec_notes = []
+        self.fixing_cell = None
+        self.pending_queue = []
+        self.saved_path = Path(chosen)
+        self.dirty = False
+        self._update_title()
+        n_cells = len(self.notebook.cells)
+        self.chat.add_app_note(
+            f"📂 Notebook aberto: {self.saved_path.name} ({n_cells} células) — "
+            f"{contexto}. As variáveis ainda não estão na memória: use "
+            "“▶▶ Executar tudo” para recarregar os dados antes de continuar a análise."
+        )
+
+    def _ask_save_choice(self, acao: str) -> str:
+        """Pergunta o que fazer com alterações não salvas.
+        Devolve 'salvar', 'descartar' ou 'cancelar'."""
+        box = QMessageBox(self)
+        box.setWindowTitle("Salvar notebook?")
+        box.setText(
+            f"O notebook atual tem alterações não salvas.\nDeseja salvá-lo {acao}?"
+        )
+        salvar = box.addButton("💾 Salvar", QMessageBox.AcceptRole)
+        box.addButton("Continuar sem salvar", QMessageBox.DestructiveRole)
+        cancelar = box.addButton("Cancelar", QMessageBox.RejectRole)
+        box.setDefaultButton(salvar)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is salvar:
+            return "salvar"
+        if clicked is cancelar:
+            return "cancelar"
+        return "descartar"
+
+    def _resolve_unsaved(self, acao: str) -> bool:
+        """Garante que alterações não salvas foram tratadas.
+        Devolve False se o usuário cancelou a ação."""
+        if not (self.dirty and self.notebook.cells):
+            return True
+        choice = self._ask_save_choice(acao)
+        if choice == "cancelar":
+            return False
+        if choice == "salvar":
+            return self.on_save_notebook()
+        return True
 
     # ------------------------------------------------------------------
     # Conversa com o Claude
@@ -309,6 +472,7 @@ class MainWindow(QMainWindow):
         if self.phase != PHASE_IDLE:
             return
         self.chat.add_user(text)
+        self._mark_dirty()
         prompt = text
         if self.exec_notes:
             notes = "\n".join(self.exec_notes[-6:])
@@ -342,6 +506,7 @@ class MainWindow(QMainWindow):
 
         parsed = parse_response(full_text)
         self.chat.end_stream(parsed.chat_text or "(célula gerada)")
+        self._mark_dirty()
 
         new_lessons = 0
         for lesson in parsed.lessons:
@@ -502,6 +667,7 @@ class MainWindow(QMainWindow):
         self.current_cell = None
         # As saídas já chegaram uma a uma via _on_cell_output.
         cell.execution_count = result.execution_count
+        self._mark_dirty()
         index = self.notebook.index_of(cell) + 1
         widget = self.notebook_panel.widget_for(cell)
 
@@ -638,6 +804,9 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------
     def closeEvent(self, event) -> None:  # noqa: N802
+        if not self._resolve_unsaved("antes de sair"):
+            event.ignore()
+            return
         if self.llm_worker is not None:
             self.llm_worker.cancel.set()
         self.kernel.shutdown()
