@@ -49,6 +49,7 @@ class ChatPanel(QWidget):
         super().__init__(parent)
         self.t = LIGHT               # tokens do tema atual
         self.font_px = 13
+        self.assistant_name = "Claude"   # muda conforme o serviço conectado
         self.entries: list[tuple[str, str]] = []   # (papel, html)
         self._streaming = False
         self._stream_buffer = ""
@@ -102,6 +103,12 @@ class ChatPanel(QWidget):
     # ------------------------------------------------------------------
     # Aparência (acessibilidade)
     # ------------------------------------------------------------------
+    def set_assistant_name(self, name: str) -> None:
+        """Define quem aparece como autor das respostas (Claude, GPT…)."""
+        if name and name != self.assistant_name:
+            self.assistant_name = name
+            self._render()
+
     def set_appearance(self, t: dict, font_px: int) -> None:
         self.t = t
         self.font_px = font_px
@@ -206,7 +213,11 @@ class ChatPanel(QWidget):
         t = self.t
         styles = {
             "user": ("Você", t["chat_user_bg"], t["chat_user_fg"]),
-            "assistant": ("Claude", t["chat_assistant_bg"], t["chat_assistant_fg"]),
+            "assistant": (
+                self.assistant_name,
+                t["chat_assistant_bg"],
+                t["chat_assistant_fg"],
+            ),
             "app": ("PySusNoCode", t["chat_app_bg"], t["chat_app_fg"]),
             "error": ("Erro", t["chat_error_bg"], t["chat_error_fg"]),
         }

@@ -32,6 +32,7 @@ from ..config import (
     BACKEND_OPENAI,
     NOTEBOOKS_DIR,
     Config,
+    assistant_name,
     find_claude_cli,
     models_for,
 )
@@ -106,6 +107,7 @@ class MainWindow(QMainWindow):
         self.statusBar().addWidget(self.status_label)
 
         self.login_btn.setVisible(self.config["backend"] == BACKEND_AGENT)
+        self.chat.set_assistant_name(self._assistant())
         if self.config["always_on_top"]:
             self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
 
@@ -154,7 +156,7 @@ class MainWindow(QMainWindow):
 
         self.autotest_check = QCheckBox(" Autoteste e correção automática ")
         self.autotest_check.setToolTip(
-            "Executar automaticamente cada célula criada pelo Claude e corrigir erros sozinho"
+            "Executar automaticamente cada célula criada pela IA e corrigir erros sozinho"
         )
         self.autotest_check.setChecked(bool(self.config["autotest"]))
         self.autotest_check.toggled.connect(self._on_autotest_toggled)
@@ -240,6 +242,10 @@ class MainWindow(QMainWindow):
         self.chat.set_busy(phase != PHASE_IDLE, status)
         self._update_status()
 
+    def _assistant(self) -> str:
+        """Nome de quem responde no chat, conforme a conexão escolhida."""
+        return assistant_name(self.config["backend"])
+
     def _current_model(self) -> str | None:
         models = models_for(self.config["backend"])
         index = self.model_combo.currentIndex()
@@ -283,6 +289,7 @@ class MainWindow(QMainWindow):
         self.backend = make_backend(self.config)
         self._reload_models()
         self.login_btn.setVisible(self.config["backend"] == BACKEND_AGENT)
+        self.chat.set_assistant_name(self._assistant())
         nome = {
             BACKEND_AGENT: "sua conta claude.ai",
             BACKEND_API: "a API da Anthropic",
@@ -563,7 +570,7 @@ class MainWindow(QMainWindow):
                 f"Pedido do usuário: {text}"
             )
             self.exec_notes = []
-        self._start_llm_turn(prompt, "O Claude está pensando…")
+        self._start_llm_turn(prompt, f"O {self._assistant()} está pensando…")
 
     def _start_llm_turn(self, prompt: str, status: str) -> None:
         self._set_phase(PHASE_LLM, status)
@@ -794,7 +801,7 @@ class MainWindow(QMainWindow):
             if result.timed_out:
                 self.chat.add_app_note(
                     f"⏱ A célula {index} excedeu o tempo limite e foi interrompida. "
-                    "Você pode aumentar o tempo nas Configurações ou pedir ao Claude "
+                    f"Você pode aumentar o tempo nas Configurações ou pedir ao {self._assistant()} "
                     "uma versão mais leve (menos anos/UFs)."
                 )
             else:
@@ -826,14 +833,16 @@ class MainWindow(QMainWindow):
             code=cell.source,
             error=error[-3000:],
         )
-        self._start_llm_turn(prompt, f"O Claude está corrigindo a célula {index}…")
+        self._start_llm_turn(
+            prompt, f"O {self._assistant()} está corrigindo a célula {index}…"
+        )
 
     def _apply_fix(self, parsed) -> None:
         cell = self.fixing_cell
         code_cells = [c for c in parsed.cells if c.kind == "code"]
         if cell is None or not code_cells:
             self.chat.add_app_note(
-                "O Claude não devolveu uma célula corrigida. Tente clicar em "
+                f"O {self._assistant()} não devolveu uma célula corrigida. Tente clicar em "
                 "“🔧 Corrigir com IA” novamente ou descreva o problema no chat."
             )
             self._abort_flow()
@@ -849,7 +858,7 @@ class MainWindow(QMainWindow):
     def on_stop(self) -> None:
         if self.llm_worker is not None:
             self.llm_worker.cancel.set()
-            self.chat.set_busy(True, "Interrompendo o Claude…")
+            self.chat.set_busy(True, f"Interrompendo o {self._assistant()}…")
         elif self.cell_worker is not None:
             self.kernel.interrupt()
             self.chat.set_busy(True, "Interrompendo a célula…")

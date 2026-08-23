@@ -93,7 +93,7 @@ class NotebookPanel(QWidget):
         self.cells_layout.setAlignment(Qt.AlignTop)
         self.cells_layout.setSpacing(8)
         self.empty_label = QLabel(
-            "As células criadas pelo Claude aparecerão aqui,\nprontas para executar, editar e copiar."
+            "As células criadas pela IA aparecerão aqui,\nprontas para executar, editar e copiar."
         )
         self.empty_label.setAlignment(Qt.AlignCenter)
         self.cells_layout.addWidget(self.empty_label)

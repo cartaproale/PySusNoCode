@@ -111,7 +111,7 @@ class CellWidget(QFrame):
             header.addWidget(self.run_btn)
 
             self.fix_btn = QPushButton("🔧 Corrigir com IA")
-            self.fix_btn.setToolTip("Pedir ao Claude para corrigir o erro desta célula")
+            self.fix_btn.setToolTip("Pedir à IA para corrigir o erro desta célula")
             self.fix_btn.clicked.connect(lambda: self.fix_requested.emit(self))
             self.fix_btn.setVisible(False)
             header.addWidget(self.fix_btn)

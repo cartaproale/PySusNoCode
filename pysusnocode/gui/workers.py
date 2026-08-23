@@ -1,4 +1,4 @@
-"""Threads de trabalho: chamadas ao Claude e execução de células no kernel."""
+"""Threads de trabalho: chamadas à IA e execução de células no kernel."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ class LLMWorker(QThread):
         except LLMError as exc:
             self.failed.emit(str(exc))
         except Exception as exc:  # noqa: BLE001
-            self.failed.emit(f"Erro inesperado ao falar com o Claude: {exc}")
+            self.failed.emit(f"Erro inesperado ao falar com a IA: {exc}")
 
 
 class KernelStartWorker(QThread):

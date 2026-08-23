@@ -46,6 +46,11 @@ def models_for(backend: str):
     return OPENAI_MODELS if backend == BACKEND_OPENAI else CLAUDE_MODELS
 
 
+def assistant_name(backend: str) -> str:
+    """Nome de quem responde no chat, conforme o serviço escolhido."""
+    return "GPT" if backend == BACKEND_OPENAI else "Claude"
+
+
 DEFAULTS = {
     "backend": BACKEND_AGENT,
     "model_index": 0,          # índice em CLAUDE_MODELS
