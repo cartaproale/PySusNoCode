@@ -160,5 +160,13 @@ Colab, se quiser.<br><br>
 <li>“Quantas internações por asma houve no Ceará em janeiro de 2024?”</li>
 <li>“Gráfico da mortalidade infantil em São Paulo entre 2019 e 2023.”</li>
 </ul>
-Escreva seu pedido abaixo e clique em <b>Enviar</b>. 💬
+Escreva seu pedido abaixo e clique em <b>Enviar</b>. 💬<br><br>
+🎥 Primeira vez por aqui? Assista ao
+<a href="{VIDEO_TUTORIAL}">vídeo tutorial</a> (abre no navegador) — ou clique em
+<b>🎥 Tutorial</b> na barra acima a qualquer momento.
 """
+
+# Vídeo tutorial oficial do aplicativo (abre no navegador do usuário).
+VIDEO_TUTORIAL_URL = "https://youtu.be/MWqOzsnJxtY"
+
+WELCOME_HTML = WELCOME_HTML.replace("{VIDEO_TUTORIAL}", VIDEO_TUTORIAL_URL)

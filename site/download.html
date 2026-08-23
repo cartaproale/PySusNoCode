@@ -124,6 +124,132 @@
   }
   .aviso strong { color: var(--ambar-tinta); }
 
+  /* ---------- ilustrações dos avisos do Windows ---------- */
+  .ilustra {
+    margin: 14px 0 10px;
+    border: 1px solid #b9c2cd;
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+  .ilustra .selo {
+    background: #eef1f5;
+    color: #5b6675;
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-bottom: 1px solid #dde3ea;
+  }
+  .ilustra .corpo {
+    background: #fbfcfd;
+    color: #1f2933;
+    padding: 14px 16px;
+  }
+  .ilustra .corpo.azul { background: #0b5ea8; color: #ffffff; }
+  .ilustra .corpo.azul .titulo-dialogo { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+  .ilustra .corpo.preta {
+    background: #0f1115;
+    color: #d5dae2;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+  }
+  .ilustra .arquivo { font-weight: 600; }
+  .ilustra .botoes { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-falso {
+    display: inline-block;
+    border: 1px solid #9aa5b1;
+    border-radius: 4px;
+    background: #f0f2f5;
+    color: #2b3440;
+    padding: 5px 14px;
+    font-size: 0.85rem;
+  }
+  .btn-falso.acao {
+    border-color: #ffffff;
+    background: transparent;
+    color: #ffffff;
+  }
+  .btn-falso.clicar {
+    border-color: var(--verde);
+    background: #e8f5ee;
+    color: var(--verde);
+    font-weight: 700;
+    box-shadow: 0 0 0 3px rgba(39, 103, 73, 0.18);
+  }
+  .corpo.azul .btn-falso.clicar {
+    background: #ffffff;
+    color: #0b5ea8;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35);
+  }
+  .oque-fazer {
+    background: #e8f5ee;
+    border-left: 4px solid var(--verde);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    color: #1c4732;
+    margin-top: 8px;
+  }
+  .nao-feche {
+    background: #fdecea;
+    border-left: 4px solid #c0392b;
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    color: #8b2620;
+    margin-top: 8px;
+  }
+  .navegador-nome {
+    display: inline-block;
+    background: var(--azul-claro);
+    color: var(--azul-escuro);
+    border-radius: 20px;
+    padding: 2px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin: 14px 0 2px;
+  }
+
+  /* ---------- vídeo tutorial ---------- */
+  .video-caixa {
+    max-width: 760px;
+    margin: 0 auto;
+    background: var(--branco);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    padding: 22px 26px;
+    text-align: center;
+  }
+  .video-embed {
+    position: relative;
+    padding-bottom: 56.25%;
+    height: 0;
+    margin: 16px 0 10px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #000;
+  }
+  .video-embed iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: 0;
+  }
+  .btn-video {
+    display: inline-block;
+    background: #c0392b;
+    color: #ffffff;
+    font-weight: 700;
+    padding: 10px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+  }
+  .btn-video:hover { background: #a53124; }
+
   /* ---------- requisitos / faq ---------- */
   .lista-requisitos {
     max-width: 620px;
@@ -207,7 +333,9 @@
       ⬇ Baixar o PySusNoCode
       <small>Sempre a versão mais recente · ~14 MB · Windows 10/11 (64 bits)</small>
     </a>
-    <p class="info-download">Instalação por usuário — <strong>não precisa de senha de administrador</strong>.</p>
+    <p class="info-download">Instalação por usuário — <strong>não precisa de senha de administrador</strong>.<br>
+    <a href="#tutorial" style="color:#ffffff;text-decoration:underline;">▶ Ver o vídeo tutorial</a> ·
+    <a href="#instalar" style="color:#ffffff;text-decoration:underline;">Passo a passo da instalação</a></p>
   </div>
 </header>
 
@@ -272,31 +400,180 @@
 
 <section style="background: var(--branco); border-top: 1px solid var(--borda); border-bottom: 1px solid var(--borda);">
   <div class="container">
-    <h2>Como instalar</h2>
-    <div class="passos">
+    <h2 id="instalar">Como instalar (passo a passo)</h2>
+
+    <div class="aviso">
+      <strong>Leia antes de começar:</strong> o PySusNoCode é um programa novo e gratuito, e
+      ainda <strong>não tem assinatura digital paga</strong> (um certificado que custa centenas
+      de reais por ano). Por causa disso, o navegador e o Windows exibem alguns avisos de
+      precaução durante o download e a instalação. <strong>Todos eles são esperados</strong> —
+      abaixo você vê exatamente o que aparece na tela e o que clicar em cada caso.
+      Nenhuma etapa pede senha de administrador.
+    </div>
+
+    <div class="passos" style="margin-top: 22px;">
+
       <div class="passo">
-        <h3>Baixe e execute o instalador</h3>
-        <p>Clique no botão de download acima e abra o arquivo <strong>PySusNoCode-Setup-1.1.0.exe</strong>. Não precisa de administrador.</p>
+        <h3>Baixe o instalador (o navegador vai avisar)</h3>
+        <p>Clique no botão <strong>“⬇ Baixar o PySusNoCode”</strong> no topo desta página.
+        O arquivo se chama <strong>PySusNoCode-Setup.exe</strong> e tem cerca de 14 MB.
+        Como poucas pessoas baixaram esse programa ainda, o navegador costuma avisar:</p>
+
+        <div class="navegador-nome">Google Chrome</div>
+        <div class="ilustra">
+          <div class="selo">Ilustração do aviso que aparece</div>
+          <div class="corpo">
+            <span class="arquivo">PySusNoCode-Setup.exe</span><br>
+            <span style="color:#8b2620;">Este arquivo não é baixado com frequência e pode ser perigoso</span>
+            <div class="botoes">
+              <span class="btn-falso">Descartar</span>
+              <span class="btn-falso clicar">⋮ → Manter</span>
+            </div>
+          </div>
+        </div>
+        <p class="oque-fazer">👉 Clique nos <strong>três pontinhos (⋮)</strong> ao lado do arquivo,
+        na barra de downloads, e escolha <strong>“Manter”</strong>. Se aparecer uma segunda
+        confirmação, clique em <strong>“Mostrar mais” → “Manter mesmo assim”</strong>.</p>
+
+        <div class="navegador-nome">Microsoft Edge</div>
+        <div class="ilustra">
+          <div class="selo">Ilustração do aviso que aparece</div>
+          <div class="corpo">
+            <span class="arquivo">PySusNoCode-Setup.exe</span> — bloqueado<br>
+            <span style="color:#8b2620;">Não é possível verificar com segurança se este arquivo é seguro</span>
+            <div class="botoes">
+              <span class="btn-falso">Excluir</span>
+              <span class="btn-falso clicar">⋯ → Manter</span>
+            </div>
+          </div>
+        </div>
+        <p class="oque-fazer">👉 Clique em <strong>“⋯” → “Manter”</strong> e, se o Edge pedir
+        de novo, em <strong>“Mostrar mais” → “Manter mesmo assim”</strong>.</p>
+
+        <div class="navegador-nome">Mozilla Firefox</div>
+        <p class="oque-fazer">👉 Se o arquivo aparecer com um ícone de aviso na lista de
+        downloads, clique nele com o <strong>botão direito</strong> e escolha
+        <strong>“Permitir download”</strong>.</p>
       </div>
+
       <div class="passo">
-        <h3>Aguarde a preparação do ambiente</h3>
-        <p>Na primeira instalação, uma janela instala automaticamente o Python e todas as bibliotecas (inclusive a PySUS). Leva alguns minutos e precisa de internet.</p>
+        <h3>Abra o instalador (a tela azul do Windows)</h3>
+        <p>Dê dois cliques no arquivo baixado. Na maioria dos computadores, o Windows mostra
+        uma tela azul chamada SmartScreen. Ela aparece porque o programa é novo, e
+        <strong>não significa que há vírus</strong>:</p>
+
+        <div class="ilustra">
+          <div class="selo">Ilustração do aviso que aparece</div>
+          <div class="corpo azul">
+            <div class="titulo-dialogo">O Windows protegeu o seu computador</div>
+            <div style="opacity:.9;">O Microsoft Defender SmartScreen impediu a inicialização de
+            um aplicativo não reconhecido. A execução desse aplicativo pode colocar o seu
+            computador em risco.<br><br>
+            Aplicativo: PySusNoCode-Setup.exe<br>Editor: Editor desconhecido</div>
+            <div class="botoes">
+              <span class="btn-falso clicar">Mais informações</span>
+              <span class="btn-falso acao">Não executar</span>
+            </div>
+          </div>
+        </div>
+        <p class="oque-fazer">👉 Clique em <strong>“Mais informações”</strong> — o texto some e
+        surge um novo botão — e depois em <strong>“Executar assim mesmo”</strong>.
+        <br>Se o botão não aparecer: feche a janela, clique no arquivo com o
+        <strong>botão direito → Propriedades</strong>, marque
+        <strong>“Desbloquear”</strong> na parte de baixo, clique em <strong>OK</strong> e abra
+        o arquivo novamente.</p>
       </div>
+
+      <div class="passo">
+        <h3>Se o seu antivírus reclamar</h3>
+        <p>Antivírus como Norton, Avast, AVG, McAfee ou Kaspersky às vezes bloqueiam programas
+        novos por precaução (o chamado “falso positivo”), com mensagens como
+        <em>“arquivo suspeito removido”</em> ou <em>“aplicativo desconhecido bloqueado”</em>.</p>
+        <p class="oque-fazer">👉 Abra o seu antivírus, procure a lista de
+        <strong>Quarentena</strong> ou <strong>Histórico</strong>, encontre o
+        <strong>PySusNoCode-Setup.exe</strong> e escolha <strong>Restaurar</strong> /
+        <strong>Permitir</strong>. Depois execute o instalador de novo. Se preferir não mexer no
+        antivírus, peça ajuda ao suporte de informática do seu serviço.</p>
+      </div>
+
+      <div class="passo">
+        <h3>Durante a instalação: a janela preta é normal</h3>
+        <p>Depois do assistente de instalação, abre-se automaticamente uma
+        <strong>janela preta de texto</strong> que instala o Python e as bibliotecas (inclusive a
+        PySUS) dentro da pasta do aplicativo. Ela demora <strong>alguns minutos</strong> e precisa
+        de internet:</p>
+
+        <div class="ilustra">
+          <div class="selo">Ilustração do que aparece</div>
+          <div class="corpo preta">PySusNoCode - preparando o ambiente (isso demora alguns
+minutos na primeira vez; precisa de conexao com a internet)
+
+[1/4] Extraindo o Python embarcado...
+[2/4] Configurando o Python...
+[3/4] Instalando o pip...
+[4/4] Instalando as bibliotecas (pysus, PySide6, anthropic...)</div>
+        </div>
+        <p class="nao-feche">⚠ <strong>Não feche essa janela preta.</strong> Ela se fecha sozinha
+        quando termina. Se você fechá-la antes do fim, use o atalho
+        <strong>“Reparar PySusNoCode”</strong> no Menu Iniciar para refazer a preparação.</p>
+        <p class="oque-fazer">👉 Se o Windows perguntar sobre o <strong>Firewall</strong>
+        (“Firewall do Windows bloqueou alguns recursos deste aplicativo”), você pode clicar em
+        <strong>Cancelar</strong> sem problema: o aplicativo só usa a rede para baixar dados
+        públicos do DATASUS, e isso continua funcionando.</p>
+      </div>
+
       <div class="passo">
         <h3>Entre com sua conta claude.ai</h3>
-        <p>Abra o PySusNoCode pelo atalho criado, clique em <strong>“🔑 Entrar (claude.ai)”</strong> e complete o login no navegador. Se preferir, use uma chave da API da Anthropic em Configurações.</p>
+        <p>Abra o PySusNoCode pelo atalho criado no Menu Iniciar ou na Área de trabalho, clique
+        em <strong>“🔑 Entrar (claude.ai)”</strong> e complete o login na janela que abrir (o
+        navegador será aberto). Se preferir, use uma chave da API da Anthropic em
+        <strong>Configurações</strong>.</p>
       </div>
+
       <div class="passo">
         <h3>Peça sua primeira análise</h3>
-        <p>Escreva o que você quer analisar e clique em Enviar. O notebook vai sendo montado e testado passo a passo, na sua frente.</p>
+        <p>Escreva o que você quer analisar e clique em Enviar. O notebook vai sendo montado e
+        testado passo a passo, na sua frente. Assista ao vídeo tutorial abaixo para ver o
+        aplicativo funcionando do começo ao fim.</p>
       </div>
     </div>
 
-    <div class="aviso">
-      <strong>⚠ Aviso do Windows (SmartScreen):</strong> por ser um aplicativo novo, o Windows
-      pode mostrar a tela azul “O Windows protegeu o seu computador”. Isso é esperado:
-      clique em <strong>“Mais informações”</strong> e depois em
-      <strong>“Executar assim mesmo”</strong> para continuar a instalação.
+    <details style="margin-top: 24px;">
+      <summary>Por que aparecem tantos avisos? E como sei que o arquivo é confiável?</summary>
+      <p>O Windows classifica como “desconhecido” todo programa que não paga por um
+      <strong>certificado de assinatura de código</strong> e que ainda não foi baixado por
+      milhares de pessoas. É uma precaução automática — não é uma detecção de vírus.
+      Conforme mais pessoas instalarem o PySusNoCode, os avisos vão diminuindo sozinhos.</p>
+      <p>Enquanto isso, você pode conferir a procedência do programa:</p>
+      <p>• <strong>O código-fonte é aberto</strong> e pode ser lido por qualquer pessoa em
+      <a href="https://github.com/cartaproale/PySusNoCode" target="_blank" rel="noopener">github.com/cartaproale/PySusNoCode</a> (licença MIT).<br>
+      • <strong>O instalador não é feito “à mão”</strong>: ele é compilado automaticamente pelo
+      GitHub, a partir desse código público, a cada versão — o registro de cada compilação fica
+      visível na aba <em>Actions</em> do repositório.<br>
+      • <strong>Baixe sempre pelo botão desta página</strong> (ou pela página de
+      <a href="https://github.com/cartaproale/PySusNoCode/releases/latest" target="_blank" rel="noopener">Releases</a> do projeto),
+      nunca de sites de terceiros.<br>
+      • O projeto está se candidatando à assinatura gratuita da
+      <strong>SignPath Foundation</strong> para software livre; quando aprovada, os avisos de
+      “Editor desconhecido” deixam de aparecer.</p>
+    </details>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2 id="tutorial">Vídeo tutorial</h2>
+    <div class="video-caixa">
+      <p>Veja em poucos minutos como instalar, entrar com sua conta e pedir a sua primeira
+      análise de dados do DATASUS.</p>
+      <div class="video-embed">
+        <iframe src="https://www.youtube-nocookie.com/embed/MWqOzsnJxtY"
+                title="PySusNoCode — vídeo tutorial"
+                loading="lazy"
+                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen></iframe>
+      </div>
+      <a class="btn-video" href="https://youtu.be/MWqOzsnJxtY" target="_blank" rel="noopener">▶ Assistir no YouTube</a>
     </div>
   </div>
 </section>

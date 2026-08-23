@@ -31,6 +31,11 @@ biblioteca [PySUS](https://pysus.readthedocs.io/en/latest/).
   interface. Todas as cores de texto são explícitas — o app fica legível
   independentemente do modo claro/escuro do Windows.
 
+## Vídeo tutorial
+
+▶ **[Como usar o PySusNoCode (YouTube)](https://youtu.be/MWqOzsnJxtY)** — também
+acessível dentro do aplicativo, no botão **“🎥 Tutorial”**.
+
 ## Download
 
 **[⬇ Baixar o instalador (Windows 10/11 64 bits)](https://github.com/cartaproale/PySusNoCode/releases/latest/download/PySusNoCode-Setup.exe)**

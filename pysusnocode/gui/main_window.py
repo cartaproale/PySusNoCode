@@ -30,7 +30,12 @@ from ..kernel import NotebookKernel
 from ..lessons import LessonStore
 from ..llm import make_backend
 from ..nb import STATUS_ERROR, STATUS_NEW, STATUS_OK, STATUS_RUNNING, Cell, Notebook
-from ..prompts import FIX_PROMPT_TEMPLATE, WELCOME_HTML, build_system_prompt
+from ..prompts import (
+    FIX_PROMPT_TEMPLATE,
+    VIDEO_TUTORIAL_URL,
+    WELCOME_HTML,
+    build_system_prompt,
+)
 from ..protocol import parse_response
 from ..theme import apply_app_palette, tokens as theme_tokens
 from .appearance_dialog import AppearanceDialog
@@ -157,6 +162,13 @@ class MainWindow(QMainWindow):
         bar.addWidget(self.pin_check)
         bar.addSeparator()
 
+        tutorial_btn = QPushButton("🎥 Tutorial")
+        tutorial_btn.setToolTip(
+            "Abrir o vídeo tutorial do PySusNoCode no navegador"
+        )
+        tutorial_btn.clicked.connect(self.on_tutorial)
+        bar.addWidget(tutorial_btn)
+
         appearance_btn = QPushButton("🎨 Aparência")
         appearance_btn.setToolTip(
             "Acessibilidade: escolher tema claro ou escuro e o tamanho da letra"
@@ -259,6 +271,15 @@ class MainWindow(QMainWindow):
             "claude.ai por lá (o navegador será aberto). Se a tela de login não "
             "aparecer sozinha, digite /login e pressione Enter nessa janela. "
             "Depois volte aqui e faça seu pedido normalmente."
+        )
+
+    def on_tutorial(self) -> None:
+        import webbrowser
+
+        webbrowser.open(VIDEO_TUTORIAL_URL)
+        self.chat.add_app_note(
+            "🎥 Abri o vídeo tutorial no seu navegador. Ele mostra como pedir uma "
+            "análise, executar as células e salvar o notebook."
         )
 
     def on_appearance(self) -> None:
