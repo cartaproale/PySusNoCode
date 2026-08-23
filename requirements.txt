@@ -1,5 +1,6 @@
 PySide6>=6.6
 anthropic>=0.40
+openai>=2.0
 claude-agent-sdk>=0.2
 jupyter_client>=8
 ipykernel>=6

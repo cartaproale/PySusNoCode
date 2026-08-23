@@ -54,15 +54,37 @@ class SettingsDialog(QDialog):
         install_btn.clicked.connect(self._install_cli)
         form.addRow("", install_btn)
 
-        # --- API -------------------------------------------------------
+        # --- API Anthropic ---------------------------------------------
         form.addRow(QLabel("<b>Conexão pela API da Anthropic (alternativa)</b>"))
         self.api_key_edit = QLineEdit(config["api_key"])
         self.api_key_edit.setEchoMode(QLineEdit.Password)
         self.api_key_edit.setPlaceholderText("sk-ant-…  (console.anthropic.com)")
-        form.addRow("Chave de API:", self.api_key_edit)
-        note = QLabel(
-            "A chave fica salva no seu perfil do Windows (%APPDATA%\\PySusNoCode)."
+        form.addRow("Chave da Anthropic:", self.api_key_edit)
+
+        # --- API OpenAI ------------------------------------------------
+        form.addRow(QLabel("<b>Conexão pela API da OpenAI / GPT (alternativa)</b>"))
+        self.openai_key_edit = QLineEdit(config["openai_api_key"])
+        self.openai_key_edit.setEchoMode(QLineEdit.Password)
+        self.openai_key_edit.setPlaceholderText("sk-…  (platform.openai.com/api-keys)")
+        form.addRow("Chave da OpenAI:", self.openai_key_edit)
+
+        self.openai_model_edit = QLineEdit(config["openai_custom_model"])
+        self.openai_model_edit.setPlaceholderText(
+            "opcional — ex.: gpt-5.6-terra (deixe vazio para usar a lista da barra)"
         )
+        self.openai_model_edit.setToolTip(
+            "Se a OpenAI lançar um modelo novo que ainda não está na lista do "
+            "aplicativo, digite aqui o identificador dele."
+        )
+        form.addRow("Modelo GPT personalizado:", self.openai_model_edit)
+
+        note = QLabel(
+            "As chaves ficam salvas apenas no seu perfil do Windows "
+            "(%APPDATA%\\PySusNoCode) e são enviadas somente ao serviço "
+            "correspondente. Para escolher qual usar, mude “Conexão” na barra "
+            "superior."
+        )
+        note.setWordWrap(True)
         form.addRow("", note)
 
         # --- comportamento --------------------------------------------
@@ -127,6 +149,8 @@ class SettingsDialog(QDialog):
     def _save(self) -> None:
         self.config["cli_path"] = self.cli_path_edit.text().strip()
         self.config["api_key"] = self.api_key_edit.text().strip()
+        self.config["openai_api_key"] = self.openai_key_edit.text().strip()
+        self.config["openai_custom_model"] = self.openai_model_edit.text().strip()
         self.config["autotest"] = self.autotest_check.isChecked()
         self.config["max_fix_attempts"] = self.attempts_spin.value()
         self.config["cell_timeout"] = self.timeout_spin.value()

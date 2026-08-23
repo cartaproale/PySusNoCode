@@ -22,10 +22,12 @@ biblioteca [PySUS](https://pysus.readthedocs.io/en/latest/).
   dentro do próprio arquivo `.ipynb` (metadados). O botão **“📂 Abrir”**
   restaura o notebook **e** o contexto da conversa; ao fechar com alterações
   não salvas, o aplicativo pergunta se deseja salvar.
-- 🔑 **Sua conta claude.ai**: usa o login do Claude Code (botão
-  "Entrar (claude.ai)") — ou, alternativamente, uma chave da API da Anthropic.
-- 🎛 **Escolha do modelo**: Claude Opus 5 (padrão), Sonnet 5, Haiku 4.5,
-  Fable 5 ou o padrão do Claude Code.
+- 🔑 **Três formas de conectar**: sua conta **claude.ai** (login do Claude Code,
+  botão "Entrar (claude.ai)"), uma chave de API da **Anthropic**, ou uma chave
+  de API da **OpenAI** para usar o **GPT**.
+- 🎛 **Escolha do modelo**: Claude Opus 5 (padrão), Sonnet 5, Haiku 4.5 e
+  Fable 5; ou GPT-5.6 (Terra/Sol/Luna), GPT-5.5 e GPT-5.4 mini quando a conexão
+  for pela OpenAI — mais um campo para digitar um modelo GPT novo.
 - 🎨 **Acessibilidade (botão "Aparência")**: tema **Claro** ou **Escuro** e
   **tamanho da letra** ajustável (11–24 px) para chat, células e toda a
   interface. Todas as cores de texto são explícitas — o app fica legível

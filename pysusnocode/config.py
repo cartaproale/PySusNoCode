@@ -11,22 +11,48 @@ CONFIG_FILE = APP_DIR / "config.json"
 LESSONS_FILE = APP_DIR / "lessons.json"
 NOTEBOOKS_DIR = Path.home() / "Documents" / "PySusNoCode"
 
-# (rótulo exibido, id do modelo na API, id do modelo para o CLI do Claude Code)
-MODELS = [
-    ("Claude Opus 5 (recomendado)", "claude-opus-5", "claude-opus-5"),
-    ("Claude Sonnet 5 (mais rápido)", "claude-sonnet-5", "claude-sonnet-5"),
-    ("Claude Haiku 4.5 (mais leve)", "claude-haiku-4-5", "claude-haiku-4-5"),
-    ("Claude Fable 5 (mais capaz)", "claude-fable-5", "claude-fable-5"),
-    ("Padrão do Claude Code", None, None),
-]
-
 BACKEND_AGENT = "agent_sdk"   # conta claude.ai via CLI do Claude Code
 BACKEND_API = "api"           # chave de API da Anthropic
+BACKEND_OPENAI = "openai"     # chave de API da OpenAI (GPT)
+
+BACKEND_LABELS = [
+    (BACKEND_AGENT, "Conta claude.ai (Claude Code)"),
+    (BACKEND_API, "API Anthropic (chave)"),
+    (BACKEND_OPENAI, "API OpenAI / GPT (chave)"),
+]
+
+# (rótulo exibido, id do modelo)
+CLAUDE_MODELS = [
+    ("Claude Opus 5 (recomendado)", "claude-opus-5"),
+    ("Claude Sonnet 5 (mais rápido)", "claude-sonnet-5"),
+    ("Claude Haiku 4.5 (mais leve)", "claude-haiku-4-5"),
+    ("Claude Fable 5 (mais capaz)", "claude-fable-5"),
+    ("Padrão do Claude Code", None),
+]
+
+OPENAI_MODELS = [
+    ("GPT-5.6 Terra (recomendado)", "gpt-5.6-terra"),
+    ("GPT-5.6 Sol (mais capaz)", "gpt-5.6-sol"),
+    ("GPT-5.6 Luna (mais econômico)", "gpt-5.6-luna"),
+    ("GPT-5.5", "gpt-5.5"),
+    ("GPT-5.4 mini (mais leve)", "gpt-5.4-mini"),
+]
+
+MODELS = CLAUDE_MODELS  # compatibilidade
+
+
+def models_for(backend: str):
+    """Lista de modelos oferecida para cada modo de conexão."""
+    return OPENAI_MODELS if backend == BACKEND_OPENAI else CLAUDE_MODELS
+
 
 DEFAULTS = {
     "backend": BACKEND_AGENT,
-    "model_index": 0,
-    "api_key": "",
+    "model_index": 0,          # índice em CLAUDE_MODELS
+    "openai_model_index": 0,   # índice em OPENAI_MODELS
+    "api_key": "",             # chave da Anthropic
+    "openai_api_key": "",      # chave da OpenAI
+    "openai_custom_model": "", # id de modelo GPT digitado pelo usuário (opcional)
     "cli_path": "",            # vazio = detectar automaticamente
     "autotest": True,
     "max_fix_attempts": 3,

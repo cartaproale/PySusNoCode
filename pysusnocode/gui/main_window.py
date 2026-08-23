@@ -25,7 +25,16 @@ from PySide6.QtWidgets import (
 )
 
 from .. import APP_NAME, __version__
-from ..config import BACKEND_AGENT, BACKEND_API, MODELS, NOTEBOOKS_DIR, Config, find_claude_cli
+from ..config import (
+    BACKEND_AGENT,
+    BACKEND_API,
+    BACKEND_LABELS,
+    BACKEND_OPENAI,
+    NOTEBOOKS_DIR,
+    Config,
+    find_claude_cli,
+    models_for,
+)
 from ..kernel import NotebookKernel
 from ..lessons import LessonStore
 from ..llm import make_backend
@@ -96,6 +105,7 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel()
         self.statusBar().addWidget(self.status_label)
 
+        self.login_btn.setVisible(self.config["backend"] == BACKEND_AGENT)
         if self.config["always_on_top"]:
             self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
 
@@ -121,19 +131,16 @@ class MainWindow(QMainWindow):
 
         bar.addWidget(QLabel(" Modelo: "))
         self.model_combo = QComboBox()
-        for label, _api_id, _cli_id in MODELS:
-            self.model_combo.addItem(label)
-        self.model_combo.setCurrentIndex(int(self.config["model_index"]))
         self.model_combo.currentIndexChanged.connect(self._on_model_changed)
         bar.addWidget(self.model_combo)
 
         bar.addWidget(QLabel("  Conexão: "))
         self.backend_combo = QComboBox()
-        self.backend_combo.addItem("Conta claude.ai (Claude Code)")
-        self.backend_combo.addItem("API Anthropic (chave)")
-        self.backend_combo.setCurrentIndex(
-            0 if self.config["backend"] == BACKEND_AGENT else 1
-        )
+        for backend_id, label in BACKEND_LABELS:
+            self.backend_combo.addItem(label, backend_id)
+        index = self.backend_combo.findData(self.config["backend"])
+        self.backend_combo.setCurrentIndex(max(0, index))
+        self._reload_models()
         self.backend_combo.currentIndexChanged.connect(self._on_backend_changed)
         bar.addWidget(self.backend_combo)
 
@@ -184,6 +191,20 @@ class MainWindow(QMainWindow):
     # Estado / status
     # ------------------------------------------------------------------
     def _greet_connection(self) -> None:
+        if self.config["backend"] == BACKEND_OPENAI:
+            if not (self.config["openai_api_key"] or "").strip():
+                self.chat.add_app_note(
+                    "⚠ Conexão pela OpenAI (GPT) selecionada, mas ainda sem chave. "
+                    "Abra ⚙ Configurações e cole sua chave da OpenAI."
+                )
+            return
+        if self.config["backend"] == BACKEND_API:
+            if not (self.config["api_key"] or "").strip():
+                self.chat.add_app_note(
+                    "⚠ Conexão pela API da Anthropic selecionada, mas ainda sem "
+                    "chave. Abra ⚙ Configurações e cole sua chave."
+                )
+            return
         if self.config["backend"] == BACKEND_AGENT:
             cli = find_claude_cli(self.config["cli_path"])
             if cli:
@@ -204,9 +225,11 @@ class MainWindow(QMainWindow):
             "starting": "iniciando kernel Python…",
             "ready": "kernel Python pronto",
         }[self.kernel_state]
-        backend_txt = (
-            "conta claude.ai" if self.config["backend"] == BACKEND_AGENT else "API Anthropic"
-        )
+        backend_txt = {
+            BACKEND_AGENT: "conta claude.ai",
+            BACKEND_API: "API Anthropic",
+            BACKEND_OPENAI: "API OpenAI (GPT)",
+        }.get(self.config["backend"], "?")
         self.status_label.setText(
             f"  {kernel_txt}  ·  conexão: {backend_txt}  ·  "
             f"lições aprendidas: {self.lessons.count()}"
@@ -217,13 +240,12 @@ class MainWindow(QMainWindow):
         self.chat.set_busy(phase != PHASE_IDLE, status)
         self._update_status()
 
-    def _model_ids(self) -> tuple[str | None, str | None]:
-        _label, api_id, cli_id = MODELS[self.model_combo.currentIndex()]
-        return api_id, cli_id
-
     def _current_model(self) -> str | None:
-        api_id, cli_id = self._model_ids()
-        return cli_id if self.config["backend"] == BACKEND_AGENT else api_id
+        models = models_for(self.config["backend"])
+        index = self.model_combo.currentIndex()
+        if 0 <= index < len(models):
+            return models[index][1]
+        return None
 
     def _system_prompt(self) -> str:
         return build_system_prompt(self.lessons.for_prompt())
@@ -231,17 +253,59 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Ações da barra
     # ------------------------------------------------------------------
+    def _model_key(self) -> str:
+        return (
+            "openai_model_index"
+            if self.config["backend"] == BACKEND_OPENAI
+            else "model_index"
+        )
+
+    def _reload_models(self) -> None:
+        """Repovoa a lista de modelos conforme o modo de conexão atual."""
+        models = models_for(self.config["backend"])
+        self.model_combo.blockSignals(True)
+        self.model_combo.clear()
+        for label, _model_id in models:
+            self.model_combo.addItem(label)
+        saved = int(self.config[self._model_key()] or 0)
+        self.model_combo.setCurrentIndex(min(max(0, saved), len(models) - 1))
+        self.model_combo.blockSignals(False)
+
     def _on_model_changed(self, index: int) -> None:
-        self.config["model_index"] = index
+        if index < 0:
+            return
+        self.config[self._model_key()] = index
         self.config.save()
 
     def _on_backend_changed(self, index: int) -> None:
-        self.config["backend"] = BACKEND_AGENT if index == 0 else BACKEND_API
+        self.config["backend"] = self.backend_combo.itemData(index) or BACKEND_AGENT
         self.config.save()
         self.backend = make_backend(self.config)
+        self._reload_models()
+        self.login_btn.setVisible(self.config["backend"] == BACKEND_AGENT)
+        nome = {
+            BACKEND_AGENT: "sua conta claude.ai",
+            BACKEND_API: "a API da Anthropic",
+            BACKEND_OPENAI: "a API da OpenAI (GPT)",
+        }[self.config["backend"]]
+        aviso = ""
+        if self.config["backend"] == BACKEND_OPENAI and not (
+            self.config["openai_api_key"] or ""
+        ).strip():
+            aviso = (
+                " ⚠ Antes de enviar um pedido, informe sua chave da OpenAI em "
+                "⚙ Configurações."
+            )
+        elif self.config["backend"] == BACKEND_API and not (
+            self.config["api_key"] or ""
+        ).strip():
+            aviso = (
+                " ⚠ Antes de enviar um pedido, informe sua chave da Anthropic em "
+                "⚙ Configurações."
+            )
         self.chat.add_app_note(
-            "Modo de conexão alterado. A conversa com o Claude recomeça do zero "
-            "(o notebook continua intacto)."
+            f"Conexão alterada para {nome}. A conversa recomeça do zero "
+            f"(o notebook continua intacto).{aviso}"
         )
         self._update_status()
 
@@ -301,9 +365,6 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             self.backend = make_backend(self.config)
             self.autotest_check.setChecked(bool(self.config["autotest"]))
-            self.backend_combo.setCurrentIndex(
-                0 if self.config["backend"] == BACKEND_AGENT else 1
-            )
             self._update_status()
 
     def on_new_conversation(self) -> None:

@@ -17,7 +17,7 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 
-from .config import BACKEND_AGENT, BACKEND_API, Config, find_claude_cli
+from .config import BACKEND_AGENT, BACKEND_API, BACKEND_OPENAI, Config, find_claude_cli
 
 OnChunk = Callable[[str], None]
 
@@ -317,7 +317,109 @@ class AnthropicAPIBackend:
 
 
 # ---------------------------------------------------------------------------
+# Backend 3: API da OpenAI (GPT)
+# ---------------------------------------------------------------------------
+class OpenAIBackend:
+    name = BACKEND_OPENAI
+
+    def __init__(self, config: Config) -> None:
+        self.config = config
+        self.history: list[dict] = []
+
+    def reset(self) -> None:
+        self.history = []
+
+    def send(
+        self,
+        user_text: str,
+        system_prompt: str,
+        model: str | None,
+        on_chunk: OnChunk,
+        cancel: threading.Event,
+    ) -> str:
+        import openai
+
+        api_key = (self.config["openai_api_key"] or "").strip()
+        if not api_key:
+            raise LLMError(
+                "Informe sua chave da OpenAI em ⚙ Configurações → “Chave de API da "
+                "OpenAI”. Você a obtém em platform.openai.com/api-keys (é preciso ter "
+                "créditos na conta)."
+            )
+        model = (
+            (self.config["openai_custom_model"] or "").strip()
+            or model
+            or "gpt-5.6-terra"
+        )
+
+        messages = (
+            [{"role": "system", "content": system_prompt}]
+            + self.history
+            + [{"role": "user", "content": user_text}]
+        )
+
+        client = openai.OpenAI(api_key=api_key)
+        parts: list[str] = []
+        try:
+            stream = client.chat.completions.create(
+                model=model, messages=messages, stream=True
+            )
+            for chunk in stream:
+                if cancel.is_set():
+                    stream.close()
+                    break
+                if not chunk.choices:
+                    continue
+                piece = getattr(chunk.choices[0].delta, "content", None)
+                if piece:
+                    parts.append(piece)
+                    on_chunk(piece)
+        except openai.AuthenticationError as exc:
+            raise LLMError(
+                "Chave da OpenAI inválida. Confira em ⚙ Configurações se a chave foi "
+                "colada por inteiro (ela começa com “sk-”). Se apagou a chave, gere "
+                "outra em platform.openai.com/api-keys."
+            ) from exc
+        except openai.PermissionDeniedError as exc:
+            raise LLMError(
+                f"Sua conta da OpenAI não tem acesso ao modelo “{model}”. Escolha "
+                "outro modelo na barra superior ou verifique sua organização em "
+                "platform.openai.com."
+            ) from exc
+        except openai.NotFoundError as exc:
+            raise LLMError(
+                f"O modelo “{model}” não existe ou não está disponível na sua conta. "
+                "Escolha outro na lista de modelos da barra superior."
+            ) from exc
+        except openai.RateLimitError as exc:
+            raise LLMError(
+                "A OpenAI recusou por limite de uso — normalmente isso significa que "
+                "a conta está sem créditos. Adicione créditos em "
+                "platform.openai.com/settings/organization/billing e tente de novo."
+            ) from exc
+        except openai.BadRequestError as exc:
+            raise LLMError(f"A OpenAI recusou a solicitação: {exc}") from exc
+        except openai.APIConnectionError as exc:
+            raise LLMError(
+                "Sem conexão com a OpenAI. Verifique sua internet."
+            ) from exc
+        except openai.APIStatusError as exc:
+            raise LLMError(f"A OpenAI retornou um erro: {exc}") from exc
+
+        full = "".join(parts).strip()
+        if not cancel.is_set():
+            self.history = self.history + [
+                {"role": "user", "content": user_text},
+                {"role": "assistant", "content": full},
+            ]
+        return full
+
+
+# ---------------------------------------------------------------------------
 def make_backend(config: Config):
-    if config["backend"] == BACKEND_API:
+    backend = config["backend"]
+    if backend == BACKEND_API:
         return AnthropicAPIBackend(config)
+    if backend == BACKEND_OPENAI:
+        return OpenAIBackend(config)
     return AgentSDKBackend(config)

@@ -214,6 +214,65 @@
     margin: 14px 0 2px;
   }
 
+  /* ---------- conexões (tabela + opções) ---------- */
+  .tabela-wrap { max-width: 780px; margin: 0 auto 26px; overflow-x: auto; }
+  .comparativo {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--branco);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    overflow: hidden;
+    font-size: 0.93rem;
+  }
+  .comparativo th {
+    background: var(--azul-claro);
+    color: var(--azul-escuro);
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 0.88rem;
+  }
+  .comparativo td {
+    padding: 11px 14px;
+    border-top: 1px solid var(--borda);
+    color: var(--tinta-suave);
+    vertical-align: top;
+  }
+  .comparativo td strong { color: var(--tinta); }
+  .tag-reco {
+    display: inline-block;
+    background: #e8f5ee;
+    color: var(--verde);
+    border-radius: 20px;
+    padding: 1px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+  .opcao {
+    max-width: 780px;
+    margin: 0 auto 20px;
+    background: var(--branco);
+    border: 1px solid var(--borda);
+    border-left: 5px solid var(--azul);
+    border-radius: 12px;
+    padding: 20px 26px;
+  }
+  .opcao h3 {
+    color: var(--azul-escuro);
+    font-size: 1.15rem;
+    margin-bottom: 8px;
+  }
+  .opcao p { font-size: 0.95rem; color: var(--tinta-suave); margin-bottom: 8px; }
+  .opcao code {
+    background: #eef1f4;
+    color: #1f2933;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  .opcao a { color: var(--azul); }
+
   /* ---------- vídeo tutorial ---------- */
   .video-caixa {
     max-width: 760px;
@@ -346,7 +405,7 @@
       <div class="card">
         <div class="emoji">💬</div>
         <h3>Você pede em português</h3>
-        <p>Descreva a análise que precisa — a IA (Claude) monta um notebook Python passo a passo, explicando cada etapa em linguagem simples.</p>
+        <p>Descreva a análise que precisa — a IA monta um notebook Python passo a passo, explicando cada etapa em linguagem simples. Funciona com <strong>Claude</strong> ou <strong>GPT</strong>, à sua escolha.</p>
       </div>
       <div class="card">
         <div class="emoji">🧪</div>
@@ -523,11 +582,11 @@ minutos na primeira vez; precisa de conexao com a internet)
       </div>
 
       <div class="passo">
-        <h3>Entre com sua conta claude.ai</h3>
-        <p>Abra o PySusNoCode pelo atalho criado no Menu Iniciar ou na Área de trabalho, clique
-        em <strong>“🔑 Entrar (claude.ai)”</strong> e complete o login na janela que abrir (o
-        navegador será aberto). Se preferir, use uma chave da API da Anthropic em
-        <strong>Configurações</strong>.</p>
+        <h3>Conecte a inteligência artificial</h3>
+        <p>Abra o PySusNoCode pelo atalho criado no Menu Iniciar ou na Área de trabalho. Antes
+        do primeiro pedido, escolha em <strong>“Conexão”</strong>, na barra superior, uma das
+        três formas de conectar — o passo a passo de cada uma está
+        <a href="#conexoes">logo abaixo, na próxima seção</a>.</p>
       </div>
 
       <div class="passo">
@@ -562,6 +621,163 @@ minutos na primeira vez; precisa de conexao com a internet)
 
 <section>
   <div class="container">
+    <h2 id="conexoes">Conectar a inteligência artificial</h2>
+    <p style="text-align:center; max-width:720px; margin:-10px auto 22px; color:var(--tinta-suave);">
+      O PySusNoCode não tem IA embutida: ele conversa com um serviço de inteligência
+      artificial que <strong>você escolhe</strong> na caixa <strong>“Conexão”</strong> da barra
+      superior. São três opções — escolha <em>uma</em>.
+    </p>
+
+    <div class="tabela-wrap">
+      <table class="comparativo">
+        <thead>
+          <tr><th>Opção</th><th>O que você precisa ter</th><th>Como se paga</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Conta claude.ai</strong> (Pro ou Max)<br><span class="tag-reco">recomendada</span></td>
+            <td>Assinatura Claude Pro ou Max</td>
+            <td>Mensalidade fixa — sem cobrança por uso</td>
+          </tr>
+          <tr>
+            <td><strong>Chave da Anthropic</strong></td>
+            <td>Conta em console.anthropic.com com créditos</td>
+            <td>Por uso (paga-se o que consumir)</td>
+          </tr>
+          <tr>
+            <td><strong>Chave da OpenAI</strong> (GPT)</td>
+            <td>Conta em platform.openai.com com créditos</td>
+            <td>Por uso (paga-se o que consumir)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ---------------- Opção 1: conta claude.ai ---------------- -->
+    <div class="opcao">
+      <h3>Opção 1 — Entrar com sua conta claude.ai (Pro ou Max)</h3>
+      <p>É a forma mais simples e sem surpresa na fatura: usa a assinatura que você já paga.
+      O aplicativo faz o login pelo <strong>Claude Code</strong> (instalado junto com o
+      PySusNoCode). Na primeira vez, abre-se uma janela preta de console com algumas
+      perguntas <strong>em inglês</strong> — veja abaixo o que responder em cada uma.</p>
+
+      <p><strong>1.</strong> Na barra superior do PySusNoCode, deixe
+      <strong>Conexão: “Conta claude.ai (Claude Code)”</strong> e clique em
+      <strong>“🔑 Entrar (claude.ai)”</strong>. Abre uma janela preta.</p>
+
+      <p><strong>2.</strong> A primeira pergunta é sobre as cores do texto do console.
+      Qualquer opção serve:</p>
+      <div class="ilustra">
+        <div class="selo">Ilustração da 1ª tela do console</div>
+        <div class="corpo preta">Choose the text style that looks best with your terminal:
+
+❯ 1. Dark mode
+  2. Light mode
+  3. Dark mode (colorblind-friendly)</div>
+      </div>
+      <p class="oque-fazer">👉 Use as <strong>setas ↑ ↓</strong> para escolher e pressione
+      <strong>Enter</strong>.</p>
+
+      <p><strong>3.</strong> Em seguida ele pergunta com que tipo de conta você quer entrar.
+      <strong>Esta é a tela mais importante:</strong></p>
+      <div class="ilustra">
+        <div class="selo">Ilustração da tela de escolha da conta</div>
+        <div class="corpo preta">Select login method:
+
+❯ 1. Claude account with subscription
+     Starting at $17/month for Pro, $100/month for Max
+
+  2. Anthropic Console account
+     API usage billing</div>
+      </div>
+      <p class="oque-fazer">👉 Escolha a <strong>opção 1 — “Claude account with
+      subscription”</strong> (é a sua conta Pro ou Max do claude.ai) e pressione
+      <strong>Enter</strong>. A opção 2 é para quem vai pagar por uso com chave de API.</p>
+
+      <p><strong>4.</strong> O <strong>navegador abre sozinho</strong> na página de autorização
+      da Anthropic. Entre com o e-mail da sua conta claude.ai (se ainda não estiver logado) e
+      clique em <strong>“Authorize”</strong> (Autorizar).</p>
+      <p class="oque-fazer">👉 Se o navegador mostrar um <strong>código</strong> e pedir para
+      copiá-lo, copie e volte à janela preta: cole com <strong>Ctrl+V</strong> (ou clique com o
+      botão direito) e pressione <strong>Enter</strong>.</p>
+
+      <p><strong>5.</strong> A janela preta confirma o login:</p>
+      <div class="ilustra">
+        <div class="selo">Ilustração da confirmação</div>
+        <div class="corpo preta">Login successful. Press Enter to continue…</div>
+      </div>
+      <p class="oque-fazer">👉 Pressione <strong>Enter</strong>. Se aparecer a pergunta
+      <em>“Do you trust the files in this folder?”</em>, escolha
+      <strong>“Yes, proceed”</strong>.</p>
+
+      <p><strong>6.</strong> Pronto — pode <strong>fechar a janela preta</strong> no “X”
+      (ou digitar <code>/exit</code> e Enter) e voltar ao PySusNoCode. O login fica guardado:
+      você não precisará repetir isso nas próximas vezes.</p>
+      <p class="oque-fazer">👉 De volta ao aplicativo, escreva seu pedido e clique em
+      <strong>Enviar</strong>. Se ainda aparecer mensagem de “não está logado”, feche e abra o
+      PySusNoCode novamente.</p>
+    </div>
+
+    <!-- ---------------- Opção 2: chave Anthropic ---------------- -->
+    <div class="opcao">
+      <h3>Opção 2 — Chave de API da Anthropic (paga por uso)</h3>
+      <p>Serve para quem não tem assinatura do claude.ai e prefere pagar apenas pelo que usar.</p>
+      <p><strong>1.</strong> Acesse
+      <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>
+      e crie sua conta (ou entre, se já tiver).<br>
+      <strong>2.</strong> Vá em <strong>Billing</strong> (Faturamento) e adicione créditos —
+      sem créditos a chave não funciona. Para começar, US$ 5 a 10 já permitem muitas análises.<br>
+      <strong>3.</strong> Vá em <strong>API keys</strong> → <strong>Create Key</strong>, dê um
+      nome (ex.: <em>PySusNoCode</em>) e confirme.<br>
+      <strong>4.</strong> <strong>Copie a chave</strong> (começa com <code>sk-ant-</code>) —
+      ela aparece <strong>uma única vez</strong>.<br>
+      <strong>5.</strong> No PySusNoCode: <strong>⚙ Configurações</strong> → cole em
+      <strong>“Chave da Anthropic”</strong> → <strong>Salvar</strong>.<br>
+      <strong>6.</strong> Na barra superior, mude <strong>Conexão</strong> para
+      <strong>“API Anthropic (chave)”</strong>.</p>
+    </div>
+
+    <!-- ---------------- Opção 3: chave OpenAI ---------------- -->
+    <div class="opcao">
+      <h3>Opção 3 — Chave de API da OpenAI, para usar o GPT (paga por uso)</h3>
+      <p>Prefere usar o <strong>GPT</strong> em vez do Claude? O PySusNoCode também funciona
+      com os modelos da OpenAI.</p>
+      <p><strong>1.</strong> Acesse
+      <a href="https://platform.openai.com" target="_blank" rel="noopener">platform.openai.com</a>
+      e crie sua conta (ou entre com uma conta que já use no ChatGPT).<br>
+      <strong>2.</strong> Atenção: a assinatura do <strong>ChatGPT Plus não vale aqui</strong> —
+      a API é cobrada à parte. Vá em <strong>Settings → Billing</strong> e adicione créditos
+      (US$ 5 a 10 já bastam para começar).<br>
+      <strong>3.</strong> Abra
+      <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a>
+      → <strong>“Create new secret key”</strong>, dê um nome (ex.: <em>PySusNoCode</em>) e
+      confirme.<br>
+      <strong>4.</strong> <strong>Copie a chave</strong> (começa com <code>sk-</code>) — ela
+      aparece <strong>uma única vez</strong>; se perder, é só apagar e criar outra.<br>
+      <strong>5.</strong> No PySusNoCode: <strong>⚙ Configurações</strong> → cole em
+      <strong>“Chave da OpenAI”</strong> → <strong>Salvar</strong>.<br>
+      <strong>6.</strong> Na barra superior, mude <strong>Conexão</strong> para
+      <strong>“API OpenAI / GPT (chave)”</strong>. A lista de <strong>Modelo</strong> passa a
+      mostrar os modelos GPT (GPT-5.6 Terra, Sol, Luna, GPT-5.5, GPT-5.4 mini).</p>
+      <p class="oque-fazer">👉 Dica: se a OpenAI lançar um modelo mais novo, você pode digitá-lo
+      em <strong>⚙ Configurações → “Modelo GPT personalizado”</strong> sem esperar uma
+      atualização do aplicativo.</p>
+    </div>
+
+    <div class="aviso" style="margin-top: 26px;">
+      <strong>Cuidados com as chaves de API (opções 2 e 3):</strong>
+      a chave é como uma senha de cobrança — <strong>nunca a compartilhe</strong> nem a envie por
+      e-mail ou WhatsApp. No PySusNoCode ela fica salva apenas no seu computador
+      (<code>%APPDATA%\PySusNoCode</code>) e é enviada somente ao serviço correspondente.
+      Nos dois sites é possível <strong>definir um limite mensal de gastos</strong>
+      (<em>usage limits</em>) — recomendamos configurar isso logo no começo para não haver
+      surpresas. Se desconfiar que alguém viu sua chave, apague-a no site e crie outra.
+    </div>
+  </div>
+</section>
+
+<section style="background: var(--branco); border-top: 1px solid var(--borda); border-bottom: 1px solid var(--borda);">
+  <div class="container">
     <h2 id="tutorial">Vídeo tutorial</h2>
     <div class="video-caixa">
       <p>Veja em poucos minutos como instalar, entrar com sua conta e pedir a sua primeira
@@ -584,7 +800,8 @@ minutos na primeira vez; precisa de conexao com a internet)
     <ul class="lista-requisitos">
       <li>Windows 10 ou 11 de 64 bits</li>
       <li>Conexão com a internet (instalação e uso)</li>
-      <li>Conta <strong>claude.ai</strong> (planos Pro/Max) <em>ou</em> chave da API da Anthropic</li>
+      <li>Conta <strong>claude.ai</strong> (planos Pro/Max), <em>ou</em> chave de API da
+      <strong>Anthropic</strong>, <em>ou</em> chave de API da <strong>OpenAI</strong> (GPT)</li>
       <li>Cerca de 2 GB de espaço livre em disco</li>
     </ul>
   </div>
@@ -615,7 +832,18 @@ minutos na primeira vez; precisa de conexao com a internet)
     </details>
     <details>
       <summary>Quanto custa?</summary>
-      <p>O aplicativo em si é gratuito. Para conversar com a IA é preciso uma assinatura claude.ai (Pro/Max) ou créditos na API da Anthropic — cobrados diretamente pela Anthropic.</p>
+      <p>O aplicativo em si é gratuito e de código aberto. O que é pago é o serviço de
+      inteligência artificial que você escolher: uma assinatura claude.ai (Pro/Max, mensalidade
+      fixa) ou créditos de API da Anthropic ou da OpenAI (paga-se por uso). A cobrança é feita
+      diretamente por essas empresas — o PySusNoCode não intermedeia nem recebe nada.</p>
+    </details>
+    <details>
+      <summary>Posso usar o GPT em vez do Claude?</summary>
+      <p>Sim. Em <strong>⚙ Configurações</strong>, cole sua chave da OpenAI e depois mude
+      <strong>“Conexão”</strong>, na barra superior, para <strong>“API OpenAI / GPT (chave)”</strong>.
+      A lista de modelos passa a mostrar as opções GPT. Veja o passo a passo na seção
+      <a href="#conexoes">Conectar a inteligência artificial</a>. Observação: a assinatura do
+      ChatGPT Plus não serve — a API da OpenAI é cobrada separadamente, por uso.</p>
     </details>
   </div>
 </section>
