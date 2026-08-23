@@ -2,12 +2,20 @@
 #  PySusNoCode - preparacao do ambiente (roda no computador do usuario)
 #  1. Extrai o Python embarcado (python.org) para a pasta do aplicativo
 #  2. Ativa o pip
-#  3. Instala todas as bibliotecas (pysus, PySide6, anthropic, claude-agent-sdk,
-#     jupyter, matplotlib...)
+#  3. Instala todas as bibliotecas (pysus, PySide6, anthropic, openai,
+#     claude-agent-sdk, jupyter, matplotlib...)
 #  Este script tambem serve como "Reparar instalacao".
 #
-#  Nota: ErrorActionPreference fica em Continue porque comandos nativos (pip)
-#  escrevem avisos no stderr; falhas sao detectadas por $LASTEXITCODE.
+#  Notas de manutencao:
+#  - ErrorActionPreference fica em Continue porque comandos nativos (pip)
+#    escrevem avisos no stderr; falhas sao detectadas por $LASTEXITCODE.
+#  - A instalacao usa --only-binary=:all: de proposito: o Python embarcado
+#    nao compila pacotes (nao tem compilador C e o isolamento de build do
+#    pip nao funciona com ._pth, que ignora PYTHONPATH). Sem essa opcao, um
+#    pacote publicado apenas como codigo-fonte quebra toda a instalacao com
+#    "Cannot import 'hatchling.build'".
+#  - Tudo o que aparece na tela tambem vai para instalacao.log, para permitir
+#    diagnostico depois.
 # ============================================================================
 $ErrorActionPreference = "Continue"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -15,77 +23,143 @@ $py = Join-Path $root "python"
 $pyExe = Join-Path $py "python.exe"
 $marker = Join-Path $root ".ambiente-ok"
 
-function Falha($msg) {
-    Write-Host ""
-    Write-Host "ERRO: $msg" -ForegroundColor Red
-    Write-Host "Verifique sua conexao com a internet e rode novamente pelo atalho"
-    Write-Host "'Reparar PySusNoCode' no Menu Iniciar."
+$logDir = Join-Path $env:APPDATA "PySusNoCode"
+New-Item -ItemType Directory -Force $logDir -ErrorAction SilentlyContinue | Out-Null
+$log = Join-Path $logDir "instalacao.log"
+"=== $(Get-Date -Format s) - preparando ambiente em $root ===" |
+    Out-File -FilePath $log -Append -Encoding UTF8
+
+function Escrever($texto, $cor = "Gray") {
+    Write-Host $texto -ForegroundColor $cor
+    $texto | Out-File -FilePath $log -Append -Encoding UTF8
+}
+
+function Falha($resumo, $dica) {
+    Escrever ""
+    Escrever "NAO FOI POSSIVEL CONCLUIR A INSTALACAO" "Red"
+    Escrever "Motivo: $resumo" "Red"
+    if ($dica) { Escrever "" ; Escrever $dica "Yellow" }
+    Escrever ""
+    Escrever "O registro completo esta em:"
+    Escrever "  $log"
+    Escrever "Depois de resolver, use o atalho 'Reparar PySusNoCode' no Menu Iniciar."
     Read-Host "Pressione Enter para fechar"
     exit 1
 }
 
-Write-Host "=============================================================="
-Write-Host " PySusNoCode - preparando o ambiente (isso demora alguns"
-Write-Host " minutos na primeira vez; precisa de conexao com a internet)"
-Write-Host "=============================================================="
-Write-Host ""
+function Testar-Internet {
+    try {
+        $r = Invoke-WebRequest -Uri "https://pypi.org/simple/" -UseBasicParsing `
+             -Method Head -TimeoutSec 15
+        return $r.StatusCode -ge 200 -and $r.StatusCode -lt 400
+    } catch {
+        return $false
+    }
+}
+
+Escrever "=============================================================="
+Escrever " PySusNoCode - preparando o ambiente"
+Escrever " Na primeira vez leva alguns minutos e precisa de internet."
+Escrever "=============================================================="
+Escrever ""
 
 # 1. Python embarcado -------------------------------------------------------
 if (-not (Test-Path $pyExe)) {
-    Write-Host "[1/4] Extraindo o Python embarcado..."
+    Escrever "[1/4] Extraindo o Python..."
     $zip = Join-Path $root "vendor\python-embed-amd64.zip"
-    if (-not (Test-Path $zip)) { Falha "arquivo do Python nao encontrado em $zip" }
+    if (-not (Test-Path $zip)) { Falha "o arquivo do Python nao foi encontrado em $zip" "Reinstale o PySusNoCode." }
     try {
         Expand-Archive -Path $zip -DestinationPath $py -Force -ErrorAction Stop
     } catch {
-        Falha "nao consegui extrair o Python: $($_.Exception.Message)"
+        Falha "nao consegui extrair o Python: $($_.Exception.Message)" `
+              "Verifique se o antivirus nao bloqueou a pasta do aplicativo."
     }
 } else {
-    Write-Host "[1/4] Python ja extraido."
+    Escrever "[1/4] Python ja extraido."
 }
 
-# 2. Configura os caminhos do Python ----------------------------------------
-# IMPORTANTE: sem "import site" — o site do usuario do Windows
-# (%APPDATA%\Python\...) NUNCA deve entrar no sys.path, senao pacotes de
-# outros Pythons do usuario sombreiam os do aplicativo. O site-packages
-# embarcado e listado explicitamente.
-Write-Host "[2/4] Configurando o Python..."
+# 2. Caminhos do Python -----------------------------------------------------
+# Sem "import site": o site do usuario (%APPDATA%\Python) nao pode entrar no
+# sys.path, senao pacotes de outros Pythons sombreiam os do aplicativo.
+Escrever "[2/4] Configurando o Python..."
 $pthFile = Get-ChildItem -Path $py -Filter "python3*._pth" | Select-Object -First 1
-if ($null -eq $pthFile) { Falha "arquivo ._pth nao encontrado no Python embarcado" }
+if ($null -eq $pthFile) { Falha "instalacao do Python incompleta (arquivo ._pth ausente)" "Use 'Reparar PySusNoCode'." }
 $zipLine = (Get-ChildItem -Path $py -Filter "python3*.zip" | Select-Object -First 1).Name
-# Os tres caminhos do pywin32 substituem o processamento do pywin32.pth
-# (sem "import site" nenhum arquivo .pth e processado).
 try {
     @($zipLine, ".", "..\app", "Lib\site-packages",
       "Lib\site-packages\win32", "Lib\site-packages\win32\lib",
       "Lib\site-packages\Pythonwin") |
         Set-Content -Path $pthFile.FullName -Encoding ASCII -ErrorAction Stop
 } catch {
-    Falha "nao consegui configurar o Python: $($_.Exception.Message)"
+    Falha "nao consegui configurar o Python: $($_.Exception.Message)" ""
 }
 
 # 3. pip --------------------------------------------------------------------
 cmd /c "`"$pyExe`" -m pip --version >nul 2>&1"
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "[3/4] Instalando o pip..."
-    & $pyExe (Join-Path $root "vendor\get-pip.py") --no-warn-script-location
-    if ($LASTEXITCODE -ne 0) { Falha "nao consegui instalar o pip" }
+    Escrever "[3/4] Instalando o gerenciador de pacotes (pip)..."
+    & $pyExe (Join-Path $root "vendor\get-pip.py") --no-warn-script-location 2>&1 |
+        Tee-Object -FilePath $log -Append | Out-Null
+    cmd /c "`"$pyExe`" -m pip --version >nul 2>&1"
+    if ($LASTEXITCODE -ne 0) {
+        if (-not (Testar-Internet)) {
+            Falha "nao consegui instalar o pip e o computador parece estar sem acesso ao pypi.org" `
+                  "Verifique a conexao com a internet. Em redes de empresas e hospitais, o acesso a pypi.org costuma ser bloqueado - nesse caso peca ao setor de TI para liberar pypi.org e files.pythonhosted.org."
+        }
+        Falha "nao consegui instalar o pip" "Veja o registro para detalhes."
+    }
 } else {
-    Write-Host "[3/4] pip ja instalado."
+    Escrever "[3/4] Gerenciador de pacotes pronto."
 }
 
 # 4. Bibliotecas ------------------------------------------------------------
-Write-Host "[4/4] Instalando as bibliotecas (pysus, PySide6, anthropic,"
-Write-Host "      claude-agent-sdk, jupyter, matplotlib...). Aguarde..."
-& $pyExe -m pip install --no-warn-script-location -r (Join-Path $root "app\requirements.txt")
-if ($LASTEXITCODE -ne 0) { Falha "a instalacao das bibliotecas falhou" }
+Escrever "[4/4] Baixando e instalando as bibliotecas (pysus, PySide6, anthropic,"
+Escrever "      openai, claude-agent-sdk, jupyter, matplotlib...)."
+Escrever "      Sao cerca de 320 MB; pode levar varios minutos. Aguarde..."
+
+$requisitos = Join-Path $root "app\requirements.txt"
+$argumentos = @(
+    "-m", "pip", "install",
+    "--only-binary=:all:",       # nunca compilar: veja a nota no topo
+    "--no-warn-script-location",
+    "--disable-pip-version-check",
+    "--retries", "5",            # redes instaveis
+    "--timeout", "60",
+    "-r", $requisitos
+)
+
+$tentativas = 2
+for ($i = 1; $i -le $tentativas; $i++) {
+    if ($i -gt 1) {
+        Escrever ""
+        Escrever "Tentando novamente ($i de $tentativas)..." "Yellow"
+        Start-Sleep -Seconds 5
+    }
+    & $pyExe @argumentos 2>&1 | Tee-Object -FilePath $log -Append
+    if ($LASTEXITCODE -eq 0) { break }
+}
+
+if ($LASTEXITCODE -ne 0) {
+    if (-not (Testar-Internet)) {
+        Falha "o download das bibliotecas falhou e o computador nao esta conseguindo acessar o pypi.org" `
+              "Verifique a conexao. Em redes de empresas e hospitais o acesso costuma ser bloqueado: peca ao setor de TI para liberar pypi.org e files.pythonhosted.org, ou instale usando outra rede (um celular como roteador, por exemplo)."
+    }
+    Falha "a instalacao das bibliotecas falhou (a internet esta funcionando)" `
+          "Abra o registro indicado abaixo e procure a linha que comeca com 'ERROR:'. Se aparecer falta de espaco em disco, libere espaco (o aplicativo ocupa cerca de 1,1 GB). Se aparecer bloqueio de antivirus, libere a pasta do aplicativo e tente de novo."
+}
 
 # Verificacao final ---------------------------------------------------------
-& $pyExe -c "import pysusnocode, pysus, PySide6, anthropic, claude_agent_sdk, jupyter_client, ipykernel, nbformat, matplotlib"
-if ($LASTEXITCODE -ne 0) { Falha "a verificacao final das bibliotecas falhou" }
+Escrever ""
+Escrever "Conferindo a instalacao..."
+& $pyExe -c "import pysusnocode, pysus, PySide6, anthropic, openai, claude_agent_sdk, jupyter_client, ipykernel, nbformat, matplotlib" 2>&1 |
+    Tee-Object -FilePath $log -Append
+if ($LASTEXITCODE -ne 0) {
+    Falha "as bibliotecas foram baixadas, mas o aplicativo nao conseguiu carrega-las" `
+          "Use o atalho 'Reparar PySusNoCode' no Menu Iniciar. Se persistir, desinstale e instale novamente."
+}
 
 Set-Content -Path $marker -Value (Get-Date -Format "s") -Encoding ASCII
-Write-Host ""
-Write-Host "Ambiente pronto! Voce ja pode abrir o PySusNoCode." -ForegroundColor Green
-Start-Sleep -Seconds 2
+Escrever ""
+Escrever "Tudo pronto! Voce ja pode abrir o PySusNoCode." "Green"
+Start-Sleep -Seconds 3
 exit 0

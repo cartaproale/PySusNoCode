@@ -99,13 +99,30 @@ class Config:
 
 
 def find_claude_cli(override: str = "") -> str | None:
-    """Localiza o executável nativo do Claude Code no Windows."""
+    """Localiza o executável do Claude Code.
+
+    A biblioteca claude-agent-sdk já traz um claude.exe embutido, e é ele que
+    o SDK usa para conversar. Procuramos esse primeiro para que o botão de
+    login use exatamente o mesmo programa — assim não é preciso instalar o
+    Claude Code separadamente.
+    """
+    import importlib.util
     import shutil
 
     if override:
         p = Path(override)
         if p.exists():
             return str(p)
+
+    try:
+        spec = importlib.util.find_spec("claude_agent_sdk")
+        if spec is not None and spec.origin:
+            embutido = Path(spec.origin).parent / "_bundled" / "claude.exe"
+            if embutido.exists():
+                return str(embutido)
+    except Exception:  # noqa: BLE001
+        pass
+
     candidates = [
         Path.home() / ".local" / "bin" / "claude.exe",
     ]

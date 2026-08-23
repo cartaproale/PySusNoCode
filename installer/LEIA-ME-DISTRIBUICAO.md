@@ -66,9 +66,11 @@ installer\Output\PySusNoCode-Setup-1.1.0.exe   (~14 MB)
    anthropic, claude-agent-sdk, jupyter_client, ipykernel, nbformat,
    matplotlib, openpyxl. *(Requer internet nessa etapa; é o que mantém o
    instalador pequeno.)*
-4. Opcionalmente (opção marcada por padrão) instala o **Claude Code** oficial
-   (`irm https://claude.ai/install.ps1 | iex`), necessário para o login com a
-   conta claude.ai.
+4. **Não é preciso instalar o Claude Code separadamente**: a biblioteca
+   `claude-agent-sdk` já traz o `claude.exe` embutido, e é ele que o aplicativo
+   usa tanto para conversar quanto para o login da conta claude.ai. O
+   instalador ainda oferece a instalação do Claude Code no sistema, mas como
+   opção **desmarcada**, para quem quiser usá-lo fora do aplicativo.
 5. Cria atalhos: **PySusNoCode** (Menu Iniciar e Área de trabalho) e
    **Reparar PySusNoCode** (reexecuta a preparação do ambiente, útil se a
    internet caiu no meio da instalação).

@@ -8,7 +8,7 @@
 ; No GitHub Actions a versao vem da tag (ISCC /DMyAppVersion=X.Y.Z);
 ; este valor e o padrao para compilacoes locais.
 #ifndef MyAppVersion
-  #define MyAppVersion "1.5.0"
+  #define MyAppVersion "1.5.1"
 #endif
 #define MyAppPublisher "PySusNoCode"
 #define MyAppURL "https://pysus.readthedocs.io"
@@ -38,7 +38,10 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 
 [Tasks]
 Name: "desktopicon"; Description: "Criar atalho na Area de trabalho"
-Name: "installclaude"; Description: "Instalar o Claude Code (necessario para entrar com a conta claude.ai)"
+; O claude-agent-sdk ja traz o claude.exe embutido, entao esta tarefa deixou
+; de ser necessaria; fica disponivel (desmarcada) para quem quiser o Claude
+; Code tambem fora do aplicativo.
+Name: "installclaude"; Description: "Instalar tambem o Claude Code no sistema (opcional)"; Flags: unchecked
 
 [Files]
 Source: "..\pysusnocode\*"; DestDir: "{app}\app\pysusnocode"; \

@@ -1,4 +1,7 @@
-PySide6>=6.6
+# Interface: apenas os módulos essenciais do Qt. O pacote completo "PySide6"
+# traz também os Addons (motor de navegador, 3D, gráficos Qt...), que este
+# aplicativo não usa e que somam mais de 400 MB de download e disco.
+PySide6-Essentials>=6.6
 anthropic>=0.40
 openai>=2.0
 claude-agent-sdk>=0.2
