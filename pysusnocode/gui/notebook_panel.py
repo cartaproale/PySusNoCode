@@ -5,9 +5,9 @@ from __future__ import annotations
 import webbrowser
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
-    QHBoxLayout,
     QLabel,
     QMessageBox,
     QPushButton,
@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 from ..nb import Cell, Notebook
 from ..theme import LIGHT
 from .cell_widget import CellWidget
+from .flow_layout import FlowLayout
 
 
 class NotebookPanel(QWidget):
@@ -41,12 +42,15 @@ class NotebookPanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 6, 6, 6)
 
-        header = QHBoxLayout()
+        # Barra de botões com quebra de linha: nada some em telas estreitas.
+        self.header_widget = QWidget()
+        header = FlowLayout(self.header_widget, margin=0, spacing=6)
         self.title_label = QLabel("📓 Notebook")
         header.addWidget(self.title_label)
-        header.addStretch(1)
 
         run_all_btn = QPushButton("▶▶ Executar tudo")
+        run_all_btn.setToolTip("Executar todas as células do notebook, em ordem (F5)")
+        run_all_btn.setShortcut("F5")
         run_all_btn.clicked.connect(self.run_all_requested.emit)
         header.addWidget(run_all_btn)
 
@@ -57,15 +61,19 @@ class NotebookPanel(QWidget):
 
         open_btn = QPushButton("📂 Abrir")
         open_btn.setToolTip(
-            "Abrir um notebook .ipynb salvo anteriormente (restaura também a conversa)"
+            "Abrir um notebook .ipynb salvo anteriormente, restaurando também a "
+            "conversa (Ctrl+O)"
         )
+        open_btn.setShortcut(QKeySequence.Open)
         open_btn.clicked.connect(self.open_requested.emit)
         header.addWidget(open_btn)
 
         save_btn = QPushButton("💾 Salvar")
         save_btn.setToolTip(
-            "Salvar o notebook (.ipynb) com a conversa junto — abre no Colab e no Jupyter"
+            "Salvar o notebook (.ipynb) com a conversa junto — abre no Colab e no "
+            "Jupyter (Ctrl+S)"
         )
+        save_btn.setShortcut(QKeySequence.Save)
         save_btn.clicked.connect(self.save_requested.emit)
         header.addWidget(save_btn)
 
@@ -84,7 +92,7 @@ class NotebookPanel(QWidget):
         restart_btn.clicked.connect(self.restart_kernel_requested.emit)
         header.addWidget(restart_btn)
 
-        layout.addLayout(header)
+        layout.addWidget(self.header_widget)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -109,6 +117,7 @@ class NotebookPanel(QWidget):
         self.font_px = font_px
         self.title_label.setStyleSheet(
             f"font-weight:bold; font-size:{font_px}px; color:{t['text']};"
+            "padding-right:6px;"
         )
         self.scroll.setStyleSheet(
             f"QScrollArea{{border:1px solid {t['border']};background:{t['nb_scroll_bg']};}}"

@@ -12,16 +12,19 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFileDialog,
+    QFrame,
     QLabel,
     QMainWindow,
     QMessageBox,
     QPushButton,
     QSplitter,
-    QToolBar,
+    QVBoxLayout,
+    QWidget,
 )
 
 from .. import APP_NAME, __version__
@@ -50,6 +53,7 @@ from ..protocol import parse_response
 from ..theme import apply_app_palette, tokens as theme_tokens
 from .appearance_dialog import AppearanceDialog
 from .chat_panel import ChatPanel
+from .flow_layout import FlowLayout
 from .notebook_panel import NotebookPanel
 from .settings_dialog import SettingsDialog
 from .workers import CellRunWorker, KernelStartWorker, LLMWorker
@@ -83,7 +87,7 @@ class MainWindow(QMainWindow):
         self._update_title()
         self.resize(1360, 840)
 
-        self._build_toolbar()
+        barra = self._build_toolbar()
 
         splitter = QSplitter(Qt.Horizontal)
         self.chat = ChatPanel()
@@ -101,7 +105,14 @@ class MainWindow(QMainWindow):
         self.notebook_panel.changed.connect(self._mark_dirty)
         splitter.addWidget(self.notebook_panel)
         splitter.setSizes([520, 840])
-        self.setCentralWidget(splitter)
+
+        central = QWidget()
+        col = QVBoxLayout(central)
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(0)
+        col.addWidget(barra)
+        col.addWidget(splitter, stretch=1)
+        self.setCentralWidget(central)
 
         self.status_label = QLabel()
         self.statusBar().addWidget(self.status_label)
@@ -120,74 +131,99 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Barra superior
     # ------------------------------------------------------------------
-    def _build_toolbar(self) -> None:
-        bar = QToolBar()
-        bar.setMovable(False)
-        self.addToolBar(bar)
+    def _build_toolbar(self) -> QWidget:
+        """Barra superior com quebra de linha: em telas estreitas os botões
+        passam para a linha de baixo em vez de sumirem."""
+        self.toolbar_widget = QWidget()
+        self.toolbar_widget.setObjectName("barraSuperior")
+        flow = FlowLayout(self.toolbar_widget, margin=6, spacing=6)
 
         new_btn = QPushButton("🆕 Nova conversa")
-        new_btn.setToolTip("Começar uma nova conversa e um notebook em branco")
+        new_btn.setToolTip(
+            "Começar uma nova conversa e um notebook em branco (Ctrl+N)"
+        )
+        new_btn.setShortcut(QKeySequence.New)
         new_btn.clicked.connect(self.on_new_conversation)
-        bar.addWidget(new_btn)
-        bar.addSeparator()
+        flow.addWidget(new_btn)
 
-        bar.addWidget(QLabel(" Modelo: "))
+        flow.addWidget(self._separador())
+
+        self.model_label = QLabel("Modelo:")
+        flow.addWidget(self.model_label)
         self.model_combo = QComboBox()
+        self.model_combo.setToolTip("Modelo de inteligência artificial usado nas respostas")
         self.model_combo.currentIndexChanged.connect(self._on_model_changed)
-        bar.addWidget(self.model_combo)
+        flow.addWidget(self.model_combo)
 
-        bar.addWidget(QLabel("  Conexão: "))
+        self.backend_label = QLabel("Conexão:")
+        flow.addWidget(self.backend_label)
         self.backend_combo = QComboBox()
+        self.backend_combo.setToolTip("Serviço de IA usado: sua conta claude.ai, ou uma chave de API")
         for backend_id, label in BACKEND_LABELS:
             self.backend_combo.addItem(label, backend_id)
         index = self.backend_combo.findData(self.config["backend"])
         self.backend_combo.setCurrentIndex(max(0, index))
         self._reload_models()
         self.backend_combo.currentIndexChanged.connect(self._on_backend_changed)
-        bar.addWidget(self.backend_combo)
+        flow.addWidget(self.backend_combo)
 
         self.login_btn = QPushButton("🔑 Entrar (claude.ai)")
         self.login_btn.setToolTip(
             "Abrir o Claude Code em uma janela para fazer login na sua conta claude.ai"
         )
         self.login_btn.clicked.connect(self.on_login)
-        bar.addWidget(self.login_btn)
-        bar.addSeparator()
+        flow.addWidget(self.login_btn)
 
-        self.autotest_check = QCheckBox(" Autoteste e correção automática ")
+        flow.addWidget(self._separador())
+
+        self.autotest_check = QCheckBox("Autoteste")
         self.autotest_check.setToolTip(
             "Executar automaticamente cada célula criada pela IA e corrigir erros sozinho"
         )
         self.autotest_check.setChecked(bool(self.config["autotest"]))
         self.autotest_check.toggled.connect(self._on_autotest_toggled)
-        bar.addWidget(self.autotest_check)
+        flow.addWidget(self.autotest_check)
 
-        self.pin_check = QCheckBox(" 📌 Sempre visível ")
+        self.pin_check = QCheckBox("📌 Sempre visível")
         self.pin_check.setToolTip(
             "Manter a janela do PySusNoCode acima de todas as outras janelas"
         )
         self.pin_check.setChecked(bool(self.config["always_on_top"]))
         self.pin_check.toggled.connect(self._on_pin_toggled)
-        bar.addWidget(self.pin_check)
-        bar.addSeparator()
+        flow.addWidget(self.pin_check)
+
+        flow.addWidget(self._separador())
 
         tutorial_btn = QPushButton("🎥 Tutorial")
         tutorial_btn.setToolTip(
-            "Abrir o vídeo tutorial do PySusNoCode no navegador"
+            "Abrir o vídeo tutorial do PySusNoCode no navegador (F1)"
         )
+        tutorial_btn.setShortcut(QKeySequence.HelpContents)
         tutorial_btn.clicked.connect(self.on_tutorial)
-        bar.addWidget(tutorial_btn)
+        flow.addWidget(tutorial_btn)
 
         appearance_btn = QPushButton("🎨 Aparência")
         appearance_btn.setToolTip(
             "Acessibilidade: escolher tema claro ou escuro e o tamanho da letra"
         )
         appearance_btn.clicked.connect(self.on_appearance)
-        bar.addWidget(appearance_btn)
+        flow.addWidget(appearance_btn)
 
         settings_btn = QPushButton("⚙ Configurações")
+        settings_btn.setToolTip("Chaves de API, autoteste e tempo limite (Ctrl+,)")
+        settings_btn.setShortcut(QKeySequence("Ctrl+,"))
         settings_btn.clicked.connect(self.on_settings)
-        bar.addWidget(settings_btn)
+        flow.addWidget(settings_btn)
+
+        return self.toolbar_widget
+
+    @staticmethod
+    def _separador() -> QFrame:
+        linha = QFrame()
+        linha.setFrameShape(QFrame.VLine)
+        linha.setFixedWidth(2)
+        linha.setMinimumHeight(24)
+        return linha
 
     # ------------------------------------------------------------------
     # Estado / status
@@ -366,6 +402,13 @@ class MainWindow(QMainWindow):
         apply_app_palette(QApplication.instance(), t)
         self.chat.set_appearance(t, font_px)
         self.notebook_panel.apply_appearance(t, font_px)
+        self.toolbar_widget.setStyleSheet(
+            f"#barraSuperior{{background:{t['window']};"
+            f"border-bottom:1px solid {t['border']};}}"
+            f"#barraSuperior QLabel{{color:{t['text']};font-weight:bold;}}"
+            f"#barraSuperior QCheckBox{{color:{t['text']};}}"
+            f"#barraSuperior QFrame{{color:{t['border']};}}"
+        )
 
     def on_settings(self) -> None:
         dialog = SettingsDialog(self.config, self)
@@ -521,6 +564,18 @@ class MainWindow(QMainWindow):
             f"{contexto}. As variáveis ainda não estão na memória: use "
             "“▶▶ Executar tudo” para recarregar os dados antes de continuar a análise."
         )
+        conexao_salva = meta.get("conexao")
+        if conexao_salva and conexao_salva != self.config["backend"]:
+            de = assistant_name(conexao_salva)
+            para = self._assistant()
+            if de != para:
+                self.chat.add_app_note(
+                    f"ℹ Esta conversa foi criada com o {de} e agora você está "
+                    f"conectado ao {para}. O texto da conversa foi preservado, mas "
+                    f"o {para} começa sem a memória interna do diálogo anterior — "
+                    "se algo ficar confuso, reformule o próximo pedido com os "
+                    "detalhes importantes."
+                )
 
     def _ask_save_choice(self, acao: str) -> str:
         """Pergunta o que fazer com alterações não salvas.
