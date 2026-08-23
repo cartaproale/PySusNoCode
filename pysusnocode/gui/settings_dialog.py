@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 
+from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -19,7 +20,76 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..config import Config, find_claude_cli
+from ..config import OPENAI_MODELS, Config, find_claude_cli
+
+
+class _TesteOpenAIWorker(QThread):
+    """Testa a chave e mede a estabilidade do modelo (o acesso a alguns
+    modelos da OpenAI oscila: parte das requisições volta 403)."""
+
+    pronto = Signal(str)
+
+    def __init__(self, api_key: str, modelo: str, tentativas: int = 3, parent=None):
+        super().__init__(parent)
+        self.api_key = api_key
+        self.modelo = modelo
+        self.tentativas = tentativas
+
+    def run(self) -> None:  # noqa: D401
+        import openai
+
+        try:
+            client = openai.OpenAI(api_key=self.api_key, max_retries=0)
+            ids = {m.id for m in client.models.list()}
+        except openai.AuthenticationError:
+            self.pronto.emit("❌ Chave inválida — confira se copiou a chave inteira.")
+            return
+        except Exception as exc:  # noqa: BLE001
+            self.pronto.emit(f"❌ Não consegui falar com a OpenAI: {exc}")
+            return
+
+        linhas = ["✅ Chave válida."]
+        faltando = [mid for _l, mid in OPENAI_MODELS if mid not in ids]
+        if faltando:
+            linhas.append(
+                "Modelos do aplicativo que a sua conta não lista: "
+                + ", ".join(faltando)
+            )
+
+        ok = 0
+        ultimo_erro = ""
+        for _ in range(self.tentativas):
+            try:
+                client.chat.completions.create(
+                    model=self.modelo,
+                    messages=[{"role": "user", "content": "responda: ok"}],
+                )
+                ok += 1
+            except Exception as exc:  # noqa: BLE001
+                from ..diag import descrever_erro_api
+
+                _codigo, mensagem, _req = descrever_erro_api(exc)
+                ultimo_erro = mensagem or str(exc)
+
+        linhas.append(f"\nModelo “{self.modelo}”: {ok} de {self.tentativas} tentativas funcionaram.")
+        if ok == self.tentativas:
+            linhas.append("Acesso estável — pode usar normalmente. ✅")
+        elif ok == 0:
+            linhas.append(
+                "Este modelo não está respondendo para a sua chave. Escolha outro "
+                "na barra superior (o GPT-5.6 Terra costuma ser o mais estável) ou "
+                "libere o modelo em platform.openai.com → Settings → Project → Limits."
+            )
+        else:
+            linhas.append(
+                "⚠ Acesso INSTÁVEL: a OpenAI aceita só parte das requisições deste "
+                "modelo. O aplicativo repete a tentativa automaticamente, mas o ideal "
+                "é escolher outro modelo (ex.: GPT-5.6 Terra) ou liberar este no "
+                "projeto da chave (platform.openai.com → Settings → Project → Limits)."
+            )
+        if ultimo_erro:
+            linhas.append(f"\nÚltima resposta da OpenAI: {ultimo_erro[:300]}")
+        self.pronto.emit("\n".join(linhas))
 
 
 class SettingsDialog(QDialog):
@@ -67,6 +137,14 @@ class SettingsDialog(QDialog):
         self.openai_key_edit.setEchoMode(QLineEdit.Password)
         self.openai_key_edit.setPlaceholderText("sk-…  (platform.openai.com/api-keys)")
         form.addRow("Chave da OpenAI:", self.openai_key_edit)
+
+        self.testar_btn = QPushButton("🔎 Testar conexão com a OpenAI")
+        self.testar_btn.setToolTip(
+            "Verifica a chave e mede se o modelo escolhido está respondendo de "
+            "forma estável"
+        )
+        self.testar_btn.clicked.connect(self._testar_openai)
+        form.addRow("", self.testar_btn)
 
         self.openai_model_edit = QLineEdit(config["openai_custom_model"])
         self.openai_model_edit.setPlaceholderText(
@@ -145,6 +223,31 @@ class SettingsDialog(QDialog):
             ],
             creationflags=subprocess.CREATE_NEW_CONSOLE,
         )
+
+    def _testar_openai(self) -> None:
+        chave = self.openai_key_edit.text().strip()
+        if not chave:
+            QMessageBox.information(
+                self,
+                "Sem chave",
+                "Cole primeiro a sua chave da OpenAI no campo acima.",
+            )
+            return
+        modelo = self.openai_model_edit.text().strip()
+        if not modelo:
+            indice = int(self.config["openai_model_index"] or 0)
+            modelo = OPENAI_MODELS[min(indice, len(OPENAI_MODELS) - 1)][1]
+
+        self.testar_btn.setEnabled(False)
+        self.testar_btn.setText("🔎 Testando… (alguns segundos)")
+        self._teste = _TesteOpenAIWorker(chave, modelo, parent=self)
+        self._teste.pronto.connect(self._mostrar_resultado_teste)
+        self._teste.start()
+
+    def _mostrar_resultado_teste(self, texto: str) -> None:
+        self.testar_btn.setEnabled(True)
+        self.testar_btn.setText("🔎 Testar conexão com a OpenAI")
+        QMessageBox.information(self, "Teste de conexão — OpenAI", texto)
 
     def _save(self) -> None:
         self.config["cli_path"] = self.cli_path_edit.text().strip()

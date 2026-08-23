@@ -322,12 +322,75 @@ class AnthropicAPIBackend:
 class OpenAIBackend:
     name = BACKEND_OPENAI
 
+    # A OpenAI às vezes nega acesso a um modelo de forma intermitente (403
+    # model_not_found em parte das requisições, com a mesma chave e modelo).
+    # Medido no gpt-5.5: ~60% de recusas alternando com sucessos. Retentamos
+    # algumas vezes antes de incomodar o usuário.
+    MAX_TENTATIVAS = 4
+    ESPERA_ENTRE_TENTATIVAS = 1.5
+
     def __init__(self, config: Config) -> None:
         self.config = config
         self.history: list[dict] = []
 
     def reset(self) -> None:
         self.history = []
+
+    def _stream_com_retentativa(
+        self,
+        client,
+        model: str,
+        messages: list[dict],
+        on_chunk: OnChunk,
+        cancel: threading.Event,
+    ) -> list[str]:
+        """Abre o stream e devolve os pedaços recebidos, retentando quando a
+        OpenAI recusa o modelo de forma intermitente. Só retenta enquanto nada
+        foi entregue à tela, para nunca duplicar texto."""
+        import time
+
+        import openai
+
+        from .diag import descrever_erro_api, registrar
+
+        ultimo: Exception | None = None
+        for tentativa in range(1, self.MAX_TENTATIVAS + 1):
+            parts: list[str] = []
+            try:
+                stream = client.chat.completions.create(
+                    model=model, messages=messages, stream=True
+                )
+                for chunk in stream:
+                    if cancel.is_set():
+                        stream.close()
+                        break
+                    if not chunk.choices:
+                        continue
+                    piece = getattr(chunk.choices[0].delta, "content", None)
+                    if piece:
+                        parts.append(piece)
+                        on_chunk(piece)
+                if tentativa > 1:
+                    registrar(
+                        "openai: sucesso após retentativa",
+                        f"modelo={model} tentativa={tentativa}",
+                    )
+                return parts
+            except (openai.PermissionDeniedError, openai.NotFoundError) as exc:
+                codigo, mensagem, req_id = descrever_erro_api(exc)
+                registrar(
+                    "openai: recusa de modelo",
+                    f"modelo={model} tentativa={tentativa}/{self.MAX_TENTATIVAS} "
+                    f"status={getattr(exc, 'status_code', '?')} code={codigo} "
+                    f"req={req_id} msg={mensagem}",
+                )
+                ultimo = exc
+                if parts or tentativa == self.MAX_TENTATIVAS:
+                    raise
+                time.sleep(self.ESPERA_ENTRE_TENTATIVAS * tentativa)
+        if ultimo is not None:  # pragma: no cover - defensivo
+            raise ultimo
+        return []
 
     def send(
         self,
@@ -361,36 +424,38 @@ class OpenAIBackend:
         client = openai.OpenAI(api_key=api_key)
         parts: list[str] = []
         try:
-            stream = client.chat.completions.create(
-                model=model, messages=messages, stream=True
+            parts = self._stream_com_retentativa(
+                client, model, messages, on_chunk, cancel
             )
-            for chunk in stream:
-                if cancel.is_set():
-                    stream.close()
-                    break
-                if not chunk.choices:
-                    continue
-                piece = getattr(chunk.choices[0].delta, "content", None)
-                if piece:
-                    parts.append(piece)
-                    on_chunk(piece)
         except openai.AuthenticationError as exc:
             raise LLMError(
                 "Chave da OpenAI inválida. Confira em ⚙ Configurações se a chave foi "
                 "colada por inteiro (ela começa com “sk-”). Se apagou a chave, gere "
                 "outra em platform.openai.com/api-keys."
             ) from exc
-        except openai.PermissionDeniedError as exc:
-            raise LLMError(
-                f"Sua conta da OpenAI não tem acesso ao modelo “{model}”. Escolha "
-                "outro modelo na barra superior ou verifique sua organização em "
-                "platform.openai.com."
-            ) from exc
-        except openai.NotFoundError as exc:
-            raise LLMError(
-                f"O modelo “{model}” não existe ou não está disponível na sua conta. "
-                "Escolha outro na lista de modelos da barra superior."
-            ) from exc
+        except (openai.PermissionDeniedError, openai.NotFoundError) as exc:
+            from .diag import descrever_erro_api
+
+            codigo, mensagem, req_id = descrever_erro_api(exc)
+            texto = (
+                f"A OpenAI recusou o modelo “{model}” em todas as "
+                f"{self.MAX_TENTATIVAS} tentativas.\n\n"
+                "O que costuma resolver:\n"
+                "• Escolher outro modelo na barra superior (o GPT-5.6 Terra é o "
+                "mais estável) — muitas vezes o problema é só deste modelo;\n"
+                "• Conferir se o modelo está liberado para o PROJETO da sua chave: "
+                "em platform.openai.com, abra Settings → Project → Limits e veja a "
+                "lista de modelos permitidos (chaves que começam com “sk-proj-” "
+                "valem apenas para um projeto);\n"
+                "• Se a conta é nova, alguns modelos só liberam depois da "
+                "verificação da organização.\n\n"
+                f"Resposta da OpenAI: {mensagem or '(sem detalhes)'}"
+            )
+            if codigo:
+                texto += f" [{codigo}]"
+            if req_id:
+                texto += f"\nIdentificador da requisição: {req_id}"
+            raise LLMError(texto) from exc
         except openai.RateLimitError as exc:
             raise LLMError(
                 "A OpenAI recusou por limite de uso — normalmente isso significa que "
