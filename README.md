@@ -28,6 +28,10 @@ biblioteca [PySUS](https://pysus.readthedocs.io/en/latest/).
 - 🎛 **Escolha do modelo**: Claude Opus 5 (padrão), Sonnet 5, Haiku 4.5 e
   Fable 5; ou GPT-5.6 (Terra/Sol/Luna), GPT-5.5 e GPT-5.4 mini quando a conexão
   for pela OpenAI — mais um campo para digitar um modelo GPT novo.
+- ⬇ **Aviso de nova versão**: o aplicativo consulta uma vez por dia a página
+  oficial de versões e avisa quando há atualização, com um botão que abre o
+  download (nada é baixado nem instalado sozinho; pode ser desligado em
+  Configurações).
 - 🎨 **Acessibilidade (botão "Aparência")**: tema **Claro** ou **Escuro** e
   **tamanho da letra** ajustável (11–24 px) para chat, células e toda a
   interface. Todas as cores de texto são explícitas — o app fica legível

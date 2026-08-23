@@ -178,6 +178,20 @@ class SettingsDialog(QDialog):
         self.attempts_spin.setValue(int(config["max_fix_attempts"]))
         form.addRow("Tentativas de correção automática:", self.attempts_spin)
 
+        self.updates_check = QCheckBox(
+            "Avisar quando houver uma nova versão do PySusNoCode"
+        )
+        self.updates_check.setToolTip(
+            "Consulta uma vez por dia a página oficial de versões no GitHub. "
+            "Nenhum dado seu é enviado e nada é instalado automaticamente."
+        )
+        self.updates_check.setChecked(bool(config["check_updates"]))
+        form.addRow(self.updates_check)
+
+        self.verificar_agora_btn = QPushButton("⬇ Verificar atualizações agora")
+        self.verificar_agora_btn.clicked.connect(self._verificar_agora)
+        form.addRow("", self.verificar_agora_btn)
+
         self.timeout_spin = QSpinBox()
         self.timeout_spin.setRange(30, 3600)
         self.timeout_spin.setSingleStep(30)
@@ -249,7 +263,17 @@ class SettingsDialog(QDialog):
         self.testar_btn.setText("🔎 Testar conexão com a OpenAI")
         QMessageBox.information(self, "Teste de conexão — OpenAI", texto)
 
+    def _verificar_agora(self) -> None:
+        janela = self.parent()
+        if janela is not None and hasattr(janela, "on_check_updates_clicked"):
+            janela.on_check_updates_clicked()
+        else:  # diálogo aberto sem a janela principal (testes)
+            QMessageBox.information(
+                self, "Verificar atualizações", "Abra o aplicativo para verificar."
+            )
+
     def _save(self) -> None:
+        self.config["check_updates"] = self.updates_check.isChecked()
         self.config["cli_path"] = self.cli_path_edit.text().strip()
         self.config["api_key"] = self.api_key_edit.text().strip()
         self.config["openai_api_key"] = self.openai_key_edit.text().strip()

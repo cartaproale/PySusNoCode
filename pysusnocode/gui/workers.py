@@ -39,6 +39,22 @@ class LLMWorker(QThread):
             self.failed.emit(f"Erro inesperado ao falar com a IA: {exc}")
 
 
+class UpdateCheckWorker(QThread):
+    """Consulta a última versão publicada, sem travar a interface."""
+
+    resultado = Signal(object)   # Atualizacao | None
+    falhou = Signal(str)
+
+    def run(self) -> None:
+        try:
+            from ..updates import verificar
+
+            self.resultado.emit(verificar())
+        except Exception as exc:  # noqa: BLE001
+            # Sem internet ou GitHub fora do ar: não incomodar o usuário.
+            self.falhou.emit(str(exc))
+
+
 class KernelStartWorker(QThread):
     ready = Signal()
     failed = Signal(str)

@@ -56,7 +56,7 @@ from .chat_panel import ChatPanel
 from .flow_layout import FlowLayout
 from .notebook_panel import NotebookPanel
 from .settings_dialog import SettingsDialog
-from .workers import CellRunWorker, KernelStartWorker, LLMWorker
+from .workers import CellRunWorker, KernelStartWorker, LLMWorker, UpdateCheckWorker
 
 PHASE_IDLE = "idle"
 PHASE_LLM = "llm"
@@ -83,6 +83,8 @@ class MainWindow(QMainWindow):
         self.kernel_worker: KernelStartWorker | None = None
         self.saved_path: Path | None = None
         self.dirty = False
+        self.update_worker: UpdateCheckWorker | None = None
+        self.pending_update = None
 
         self._update_title()
         self.resize(1360, 840)
@@ -127,6 +129,7 @@ class MainWindow(QMainWindow):
         self._greet_connection()
         self._update_status()
         self._start_kernel()
+        self._check_updates_if_due()
 
     # ------------------------------------------------------------------
     # Barra superior
@@ -214,6 +217,13 @@ class MainWindow(QMainWindow):
         settings_btn.setShortcut(QKeySequence("Ctrl+,"))
         settings_btn.clicked.connect(self.on_settings)
         flow.addWidget(settings_btn)
+
+        # Aparece somente quando existe versão nova publicada.
+        self.update_btn = QPushButton("⬇ Atualização disponível")
+        self.update_btn.setObjectName("botaoAtualizar")
+        self.update_btn.clicked.connect(self.on_update_clicked)
+        self.update_btn.hide()
+        flow.addWidget(self.update_btn)
 
         return self.toolbar_widget
 
@@ -384,6 +394,108 @@ class MainWindow(QMainWindow):
             "Depois volte aqui e faça seu pedido normalmente."
         )
 
+    # ------------------------------------------------------------------
+    # Verificação de novas versões
+    # ------------------------------------------------------------------
+    def _check_updates_if_due(self) -> None:
+        """Consulta a última versão publicada (uma vez por dia, em segundo
+        plano). Pode ser desligada nas Configurações."""
+        from ..updates import deve_verificar_hoje
+
+        if not self.config["check_updates"]:
+            return
+        if not deve_verificar_hoje(self.config["last_update_check"]):
+            return
+        self._start_update_check(manual=False)
+
+    def _start_update_check(self, manual: bool) -> None:
+        from ..updates import marca_de_hoje
+
+        self.config["last_update_check"] = marca_de_hoje()
+        self.config.save()
+        worker = UpdateCheckWorker(self)
+        worker.resultado.connect(
+            lambda atualizacao: self._on_update_result(atualizacao, manual)
+        )
+        worker.falhou.connect(lambda erro: self._on_update_failed(erro, manual))
+        self.update_worker = worker
+        worker.start()
+
+    def _on_update_result(self, atualizacao, manual: bool) -> None:
+        self.update_worker = None
+        if atualizacao is None:
+            if manual:
+                QMessageBox.information(
+                    self,
+                    "Tudo em dia",
+                    f"Você já está usando a versão mais recente ({__version__}).",
+                )
+            return
+        self.pending_update = atualizacao
+        self.update_btn.setText(f"⬇ Atualização {atualizacao.versao}")
+        self.update_btn.setToolTip(
+            f"A versão {atualizacao.versao} do PySusNoCode está disponível — "
+            "clique para ver e baixar"
+        )
+        self.update_btn.show()
+        self.toolbar_widget.updateGeometry()
+        self.chat.add_app_note(
+            f"⬇ Uma nova versão do PySusNoCode está disponível: "
+            f"{atualizacao.versao} (você está na {__version__}). Clique em "
+            "“⬇ Atualização {v}” na barra acima para baixar — a instalação é por "
+            "cima, mantendo suas configurações e notebooks.".replace(
+                "{v}", atualizacao.versao
+            )
+        )
+
+    def _on_update_failed(self, erro: str, manual: bool) -> None:
+        self.update_worker = None
+        from ..diag import registrar
+
+        registrar("verificacao de atualizacao falhou", erro)
+        if manual:
+            QMessageBox.warning(
+                self,
+                "Não consegui verificar",
+                "Não foi possível consultar as atualizações agora. Verifique sua "
+                "conexão com a internet e tente novamente mais tarde.",
+            )
+
+    def on_check_updates_clicked(self) -> None:
+        """Verificação manual, pedida nas Configurações."""
+        self._start_update_check(manual=True)
+
+    def on_update_clicked(self) -> None:
+        import webbrowser
+
+        from ..updates import PAGINA_RELEASE
+
+        atualizacao = getattr(self, "pending_update", None)
+        versao = atualizacao.versao if atualizacao else "mais recente"
+        notas = (atualizacao.notas if atualizacao else "") or ""
+        texto = (
+            f"A versão {versao} está disponível (você usa a {__version__}).\n\n"
+            "Ao confirmar, abro a página de download no seu navegador. Baixe o "
+            "arquivo PySusNoCode-Setup.exe e execute-o: a instalação é feita por "
+            "cima da atual e preserva suas configurações, lições aprendidas e "
+            "notebooks salvos.\n\nFeche o PySusNoCode antes de instalar."
+        )
+        if notas:
+            texto += f"\n\nNovidades desta versão:\n{notas}"
+        resposta = QMessageBox.question(
+            self,
+            "Atualizar o PySusNoCode",
+            texto,
+            QMessageBox.Open | QMessageBox.Cancel,
+            QMessageBox.Open,
+        )
+        if resposta == QMessageBox.Open:
+            webbrowser.open(PAGINA_RELEASE)
+            self.chat.add_app_note(
+                "Abri a página de download no navegador. Depois de baixar, feche o "
+                "PySusNoCode e execute o instalador."
+            )
+
     def on_tutorial(self) -> None:
         import webbrowser
 
@@ -416,6 +528,8 @@ class MainWindow(QMainWindow):
             f"#barraSuperior QCheckBox{{color:{t['text']};"
             f"font-size:{font_px - 1}px;}}"
             f"#separadorBarra{{color:{t['border']};background:{t['border']};}}"
+            f"#botaoAtualizar{{background:{t['st_ok']};color:#ffffff;"
+            f"font-weight:bold;border:1px solid {t['st_ok']};}}"
         )
 
     def on_settings(self) -> None:
