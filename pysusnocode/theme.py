@@ -16,6 +16,9 @@ LIGHT = {
     "border": "#cbd5e0",
     "highlight": "#2b6cb0",
     "highlight_text": "#ffffff",
+    "button_bg": "#ffffff",
+    "button_hover": "#e6ecf3",
+    "button_pressed": "#d7e0ea",
     # balões do chat
     "chat_user_bg": "#e6f0fa",
     "chat_user_fg": "#1a365d",
@@ -58,7 +61,12 @@ DARK = {
     "muted": "#9aa5b1",
     "border": "#3a4354",
     "highlight": "#4c8fd6",
-    "highlight_text": "#ffffff",
+    # Texto escuro sobre o azul claro do destaque: branco daria apenas
+    # 3,4:1 de contraste (abaixo do mínimo acessível de 4,5:1).
+    "highlight_text": "#0f131a",
+    "button_bg": "#2e3644",
+    "button_hover": "#3b4557",
+    "button_pressed": "#47536a",
     "chat_user_bg": "#1f3a5f",
     "chat_user_fg": "#d5e6fa",
     "chat_assistant_bg": "#2b3040",
@@ -95,6 +103,63 @@ THEME_NAMES = {"claro": "Claro", "escuro": "Escuro"}
 
 def tokens(theme_name: str) -> dict:
     return DARK if theme_name == "escuro" else LIGHT
+
+
+def app_stylesheet(t: dict) -> str:
+    """Folha de estilo global: garante contraste de texto em TODOS os
+    controles, inclusive na lista aberta dos seletores (o popup do QComboBox,
+    que não segue a paleta da janela) e nas dicas de ajuda."""
+    return f"""
+    QComboBox {{
+        color: {t['text']};
+        background: {t['base']};
+        border: 1px solid {t['border']};
+        border-radius: 4px;
+        padding: 3px 6px;
+        min-height: 20px;
+    }}
+    QComboBox:disabled {{ color: {t['muted']}; }}
+    QComboBox::drop-down {{ border: 0; width: 18px; }}
+    QComboBox QAbstractItemView {{
+        background: {t['base']};
+        color: {t['text']};
+        border: 1px solid {t['border']};
+        selection-background-color: {t['highlight']};
+        selection-color: {t['highlight_text']};
+        outline: none;
+    }}
+    QPushButton {{
+        color: {t['text']};
+        background: {t['button_bg']};
+        border: 1px solid {t['border']};
+        border-radius: 4px;
+        padding: 5px 10px;
+    }}
+    QPushButton:hover {{ background: {t['button_hover']}; }}
+    QPushButton:pressed {{ background: {t['button_pressed']}; }}
+    QPushButton:disabled {{ color: {t['muted']}; border-color: {t['muted']}; }}
+    QCheckBox {{ color: {t['text']}; spacing: 6px; }}
+    QCheckBox:disabled {{ color: {t['muted']}; }}
+    QSpinBox, QLineEdit, QPlainTextEdit {{
+        color: {t['text']};
+        background: {t['base']};
+        border: 1px solid {t['border']};
+        border-radius: 4px;
+        selection-background-color: {t['highlight']};
+        selection-color: {t['highlight_text']};
+    }}
+    QToolTip {{
+        color: {t['text']};
+        background: {t['base']};
+        border: 1px solid {t['border']};
+        padding: 4px;
+    }}
+    QMenu {{ background: {t['base']}; color: {t['text']}; border: 1px solid {t['border']}; }}
+    QMenu::item:selected {{ background: {t['highlight']}; color: {t['highlight_text']}; }}
+    QScrollBar:vertical, QScrollBar:horizontal {{ background: {t['window']}; }}
+    QDialog, QMessageBox {{ background: {t['window']}; color: {t['text']}; }}
+    QDialog QLabel, QMessageBox QLabel {{ color: {t['text']}; }}
+    """
 
 
 def apply_app_palette(app, t: dict) -> None:

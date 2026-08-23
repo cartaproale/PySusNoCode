@@ -50,7 +50,7 @@ from ..prompts import (
     build_system_prompt,
 )
 from ..protocol import parse_response
-from ..theme import apply_app_palette, tokens as theme_tokens
+from ..theme import app_stylesheet, apply_app_palette, tokens as theme_tokens
 from .appearance_dialog import AppearanceDialog
 from .chat_panel import ChatPanel
 from .flow_layout import FlowLayout
@@ -220,6 +220,10 @@ class MainWindow(QMainWindow):
     @staticmethod
     def _separador() -> QFrame:
         linha = QFrame()
+        # objectName próprio: sem ele, uma regra "QFrame{...}" no estilo da
+        # barra atingiria também QLabel e a lista do QComboBox (ambos herdam
+        # de QFrame) e apagaria o texto deles.
+        linha.setObjectName("separadorBarra")
         linha.setFrameShape(QFrame.VLine)
         linha.setFixedWidth(2)
         linha.setMinimumHeight(24)
@@ -399,15 +403,19 @@ class MainWindow(QMainWindow):
 
         t = theme_tokens(self.config["theme"])
         font_px = int(self.config["font_size"])
-        apply_app_palette(QApplication.instance(), t)
+        app = QApplication.instance()
+        apply_app_palette(app, t)
+        app.setStyleSheet(app_stylesheet(t))
         self.chat.set_appearance(t, font_px)
         self.notebook_panel.apply_appearance(t, font_px)
         self.toolbar_widget.setStyleSheet(
             f"#barraSuperior{{background:{t['window']};"
             f"border-bottom:1px solid {t['border']};}}"
-            f"#barraSuperior QLabel{{color:{t['text']};font-weight:bold;}}"
-            f"#barraSuperior QCheckBox{{color:{t['text']};}}"
-            f"#barraSuperior QFrame{{color:{t['border']};}}"
+            f"#barraSuperior QLabel{{color:{t['text']};font-weight:bold;"
+            f"font-size:{font_px - 1}px;}}"
+            f"#barraSuperior QCheckBox{{color:{t['text']};"
+            f"font-size:{font_px - 1}px;}}"
+            f"#separadorBarra{{color:{t['border']};background:{t['border']};}}"
         )
 
     def on_settings(self) -> None:
