@@ -5,3 +5,7 @@ __pycache__/
 
 # artefatos de compilação do instalador (publicados via GitHub Releases)
 installer/Output/
+
+# bibliotecas baixadas para o instalador completo (~350 MB): são geradas por
+# installer/baixar_wheels.ps1 a cada compilação, não entram no repositório
+installer/vendor/wheels/

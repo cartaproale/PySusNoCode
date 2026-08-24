@@ -23,6 +23,13 @@ $py = Join-Path $root "python"
 $pyExe = Join-Path $py "python.exe"
 $marker = Join-Path $root ".ambiente-ok"
 
+# Instalador offline: quando a pasta vendor\wheels existe, todas as bibliotecas
+# ja vieram dentro do instalador e nada e baixado da internet. E o que permite
+# instalar em prefeituras, hospitais e unidades de saude, onde o acesso ao
+# pypi.org costuma ser bloqueado pelo setor de TI.
+$wheels = Join-Path $root "vendor\wheels"
+$offline = Test-Path $wheels
+
 $logDir = Join-Path $env:APPDATA "PySusNoCode"
 New-Item -ItemType Directory -Force $logDir -ErrorAction SilentlyContinue | Out-Null
 $log = Join-Path $logDir "instalacao.log"
@@ -68,7 +75,12 @@ function Testar-Internet {
 
 Escrever "=============================================================="
 Escrever " PySusNoCode - preparando o ambiente"
-Escrever " Na primeira vez leva alguns minutos e precisa de internet."
+if ($offline) {
+    Escrever " Versao completa: as bibliotecas ja vieram no instalador."
+    Escrever " Nao e preciso internet nesta etapa."
+} else {
+    Escrever " Na primeira vez leva alguns minutos e precisa de internet."
+}
 Escrever "=============================================================="
 Escrever ""
 
@@ -107,13 +119,21 @@ try {
 cmd /c "`"$pyExe`" -m pip --version >nul 2>&1"
 if ($LASTEXITCODE -ne 0) {
     Escrever "[3/4] Instalando o gerenciador de pacotes (pip)..."
-    & $pyExe (Join-Path $root "vendor\get-pip.py") --no-warn-script-location 2>&1 |
-        Registrar-Saida
+    # No modo offline o get-pip.py e apontado para os arquivos que vieram no
+    # instalador: sem isso ele tenta buscar o pip no pypi.org, que e onde a
+    # instalacao morre em rede controlada.
+    $argsPip = @((Join-Path $root "vendor\get-pip.py"), "--no-warn-script-location")
+    if ($offline) { $argsPip += @("--no-index", "--find-links", $wheels) }
+    & $pyExe @argsPip 2>&1 | Registrar-Saida
     cmd /c "`"$pyExe`" -m pip --version >nul 2>&1"
     if ($LASTEXITCODE -ne 0) {
+        if ($offline) {
+            Falha "nao consegui ativar o gerenciador de pacotes com os arquivos do instalador" `
+                  "O instalador pode estar incompleto ou o antivirus pode ter apagado arquivos da pasta do aplicativo. Libere a pasta no antivirus e use 'Reparar PySusNoCode'; se persistir, baixe o instalador de novo."
+        }
         if (-not (Testar-Internet)) {
             Falha "nao consegui instalar o pip e o computador parece estar sem acesso ao pypi.org" `
-                  "Verifique a conexao com a internet. Em redes de empresas e hospitais, o acesso a pypi.org costuma ser bloqueado - nesse caso peca ao setor de TI para liberar pypi.org e files.pythonhosted.org."
+                  "Duas saidas: (1) baixe a VERSAO COMPLETA do instalador, que traz todas as bibliotecas dentro e nao precisa de internet - e a indicada para prefeituras, hospitais e unidades de saude; ou (2) peca ao setor de TI para liberar pypi.org e files.pythonhosted.org."
         }
         Falha "nao consegui instalar o pip" "Veja o registro para detalhes."
     }
@@ -122,9 +142,15 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # 4. Bibliotecas ------------------------------------------------------------
-Escrever "[4/4] Baixando e instalando as bibliotecas (pysus, PySide6, anthropic,"
-Escrever "      openai, claude-agent-sdk, jupyter, matplotlib...)."
-Escrever "      Sao cerca de 320 MB; pode levar varios minutos. Aguarde..."
+if ($offline) {
+    Escrever "[4/4] Instalando as bibliotecas que vieram no instalador"
+    Escrever "      (pysus, PySide6, anthropic, openai, claude-agent-sdk,"
+    Escrever "      jupyter, matplotlib...). Sem internet. Aguarde..."
+} else {
+    Escrever "[4/4] Baixando e instalando as bibliotecas (pysus, PySide6, anthropic,"
+    Escrever "      openai, claude-agent-sdk, jupyter, matplotlib...)."
+    Escrever "      Sao cerca de 320 MB; pode levar varios minutos. Aguarde..."
+}
 
 $requisitos = Join-Path $root "app\requirements.txt"
 $argumentos = @(
@@ -136,8 +162,13 @@ $argumentos = @(
     "--timeout", "60",
     "-r", $requisitos
 )
+if ($offline) {
+    # --no-index proibe qualquer acesso a rede: se faltar algo, o erro aponta o
+    # pacote que falta em vez de ficar minutos tentando alcancar o pypi.org.
+    $argumentos += @("--no-index", "--find-links", $wheels)
+}
 
-$tentativas = 2
+$tentativas = if ($offline) { 1 } else { 2 }
 for ($i = 1; $i -le $tentativas; $i++) {
     if ($i -gt 1) {
         Escrever ""
@@ -149,9 +180,13 @@ for ($i = 1; $i -le $tentativas; $i++) {
 }
 
 if ($LASTEXITCODE -ne 0) {
+    if ($offline) {
+        Falha "a instalacao das bibliotecas que vieram no instalador falhou" `
+              "Procure no registro a linha que comeca com 'ERROR:'. Se aparecer falta de espaco, libere disco (o aplicativo ocupa cerca de 1,1 GB). Se aparecer arquivo ausente ou corrompido, o antivirus pode ter apagado parte da pasta: libere a pasta do aplicativo e use 'Reparar PySusNoCode'."
+    }
     if (-not (Testar-Internet)) {
         Falha "o download das bibliotecas falhou e o computador nao esta conseguindo acessar o pypi.org" `
-              "Verifique a conexao. Em redes de empresas e hospitais o acesso costuma ser bloqueado: peca ao setor de TI para liberar pypi.org e files.pythonhosted.org, ou instale usando outra rede (um celular como roteador, por exemplo)."
+              "A saida mais simples e baixar a VERSAO COMPLETA do instalador, que traz todas as bibliotecas dentro e dispensa internet nesta etapa - foi feita para prefeituras, hospitais e unidades de saude. As outras opcoes sao pedir ao setor de TI para liberar pypi.org e files.pythonhosted.org, ou instalar usando outra rede (um celular como roteador, por exemplo)."
     }
     Falha "a instalacao das bibliotecas falhou (a internet esta funcionando)" `
           "Abra o registro indicado abaixo e procure a linha que comeca com 'ERROR:'. Se aparecer falta de espaco em disco, libere espaco (o aplicativo ocupa cerca de 1,1 GB). Se aparecer bloqueio de antivirus, libere a pasta do aplicativo e tente de novo."

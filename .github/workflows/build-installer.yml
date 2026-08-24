@@ -59,11 +59,25 @@ jobs:
             choco install innosetup --no-progress -y
           }
 
-      - name: Compilar o instalador
+      - name: Compilar o instalador enxuto
         shell: pwsh
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
             /DMyAppVersion=${{ steps.ver.outputs.version }} `
+            "installer\PySusNoCode.iss"
+
+      # ---- Versao completa, para redes que bloqueiam o pypi.org ----
+      # Prefeituras, hospitais e unidades de saude costumam barrar o acesso ao
+      # repositorio de pacotes do Python. Esta versao leva tudo dentro.
+      - name: Baixar as bibliotecas para a versao completa
+        shell: pwsh
+        run: pwsh -File "installer\baixar_wheels.ps1"
+
+      - name: Compilar o instalador completo
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            /DMyAppVersion=${{ steps.ver.outputs.version }} /DOFFLINE=1 `
             "installer\PySusNoCode.iss"
 
       # ---- Assinatura digital via SignPath (dormente ate os secrets existirem) ----
@@ -98,12 +112,15 @@ jobs:
             "installer/Output/PySusNoCode-Setup-${{ steps.ver.outputs.version }}.exe" -Force
           Write-Host "Instalador substituido pela versao assinada."
 
-      - name: Criar a copia de nome fixo (link permanente)
+      - name: Criar as copias de nome fixo (links permanentes)
         shell: pwsh
         run: |
           Copy-Item "installer/Output/PySusNoCode-Setup-${{ steps.ver.outputs.version }}.exe" `
             "installer/Output/PySusNoCode-Setup.exe"
-          Get-ChildItem "installer/Output"
+          Copy-Item "installer/Output/PySusNoCode-Setup-Completo-${{ steps.ver.outputs.version }}.exe" `
+            "installer/Output/PySusNoCode-Setup-Completo.exe"
+          Get-ChildItem "installer/Output" |
+            Select-Object Name, @{n='MB';e={[math]::Round($_.Length/1MB,1)}}
 
       - name: Publicar a Release
         shell: pwsh
@@ -113,6 +130,15 @@ jobs:
           gh release create "${{ github.ref_name }}" `
             "installer/Output/PySusNoCode-Setup-${{ steps.ver.outputs.version }}.exe" `
             "installer/Output/PySusNoCode-Setup.exe" `
+            "installer/Output/PySusNoCode-Setup-Completo-${{ steps.ver.outputs.version }}.exe" `
+            "installer/Output/PySusNoCode-Setup-Completo.exe" `
             --title "PySusNoCode ${{ steps.ver.outputs.version }}" `
             --generate-notes `
-            --notes "Instalador para Windows 10/11 (64 bits). Instala por usuario (sem administrador): Python embarcado, PySUS e todas as bibliotecas, com opcao de instalar o Claude Code para login com conta claude.ai. O arquivo PySusNoCode-Setup.exe e uma copia identica com nome fixo, usada pelo link permanente de download."
+            --notes "Instalador para Windows 10/11 (64 bits), por usuario e sem administrador.
+
+          **Qual baixar:**
+
+          - **PySusNoCode-Setup.exe** (cerca de 14 MB) - baixa as bibliotecas durante a instalacao. Serve para a maioria dos computadores.
+          - **PySusNoCode-Setup-Completo.exe** (cerca de 350 MB) - traz todas as bibliotecas dentro e nao acessa a internet para instalar. Use esta em prefeituras, hospitais e unidades de saude, onde a rede costuma bloquear o pypi.org.
+
+          Os arquivos sem numero de versao no nome sao copias identicas, usadas pelos links permanentes de download."

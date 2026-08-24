@@ -63,6 +63,28 @@
   .btn-download small { display: block; font-weight: 400; font-size: 0.85rem; color: var(--tinta-suave); }
   .info-download { margin-top: 14px; font-size: 0.92rem; color: #bfdbfe; }
 
+  /* Alternativa para redes controladas (unidades de saúde, prefeituras) */
+  .rede-restrita {
+    max-width: 640px;
+    margin: 22px auto 0;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 12px;
+    font-size: 0.94rem;
+    line-height: 1.55;
+    color: #eaf3ff;
+    text-align: left;
+  }
+  .rede-restrita strong { color: #ffffff; }
+  .rede-restrita a {
+    display: inline-block;
+    margin-top: 10px;
+    color: #ffffff;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
   /* ---------- seções ---------- */
   section { padding: 48px 0; }
   section h2 {
@@ -392,6 +414,21 @@
       ⬇ Baixar o PySusNoCode
       <small>Sempre a versão mais recente · ~14 MB · Windows 10/11 (64 bits)</small>
     </a>
+
+    <!-- ================================================================
+         Versão completa: para redes que bloqueiam o repositório de pacotes
+         do Python (pypi.org). É o caso da maioria das prefeituras, hospitais
+         e unidades de saúde. Link permanente, igual ao de cima.
+         ================================================================ -->
+    <p class="rede-restrita">
+      🏥 <strong>Vai instalar no computador de uma unidade de saúde, hospital ou prefeitura?</strong><br>
+      Essas redes costumam bloquear o download das bibliotecas, e a instalação
+      acima falha na metade. Baixe a versão completa, que já traz tudo dentro:<br>
+      <a href="https://github.com/cartaproale/PySusNoCode/releases/latest/download/PySusNoCode-Setup-Completo.exe" download>
+        ⬇ Baixar a versão completa · ~350 MB · dispensa internet na instalação
+      </a>
+    </p>
+
     <p class="info-download">Instalação por usuário — <strong>não precisa de senha de administrador</strong>.<br>
     <a href="#tutorial" style="color:#ffffff;text-decoration:underline;">▶ Ver o vídeo tutorial</a> ·
     <a href="#instalar" style="color:#ffffff;text-decoration:underline;">Passo a passo da instalação</a></p>
@@ -477,6 +514,17 @@
         <p>Clique no botão <strong>“⬇ Baixar o PySusNoCode”</strong> no topo desta página.
         O arquivo se chama <strong>PySusNoCode-Setup.exe</strong> e tem cerca de 14 MB.
         Como poucas pessoas baixaram esse programa ainda, o navegador costuma avisar:</p>
+
+        <div class="aviso" style="margin:16px 0;">
+          <strong>Computador de trabalho, em unidade de saúde ou prefeitura?</strong><br>
+          Essas redes costumam bloquear o endereço de onde o programa baixa as
+          bibliotecas do Python. A instalação vai até a metade e para, com uma
+          mensagem sobre <em>pypi.org</em>. Nesse caso baixe a
+          <a href="https://github.com/cartaproale/PySusNoCode/releases/latest/download/PySusNoCode-Setup-Completo.exe" download><strong>versão completa</strong></a>
+          (cerca de 350 MB): ela já traz todas as bibliotecas dentro e não
+          precisa acessar a internet para instalar. Os passos a seguir são
+          exatamente os mesmos.
+        </div>
 
         <div class="navegador-nome">Google Chrome</div>
         <div class="ilustra">

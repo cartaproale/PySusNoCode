@@ -1,17 +1,36 @@
 ; ===========================================================================
 ;  Instalador do PySusNoCode (Inno Setup 6)
-;  Compilar com: ISCC.exe PySusNoCode.iss
-;  Resultado: Output\PySusNoCode-Setup-<versao>.exe
+;
+;  Duas versoes saem deste mesmo arquivo:
+;
+;    ISCC.exe PySusNoCode.iss
+;        Versao enxuta (~14 MB). Baixa as bibliotecas do pypi.org durante a
+;        instalacao. Serve para a maioria dos computadores domesticos.
+;
+;    ISCC.exe /DOFFLINE=1 PySusNoCode.iss
+;        Versao completa (~350 MB). Traz todas as bibliotecas dentro e nao
+;        acessa a internet para instalar. E a indicada para prefeituras,
+;        hospitais e unidades de saude, onde o pypi.org costuma ser bloqueado.
+;        Exige rodar antes: pwsh installer\baixar_wheels.ps1
 ; ===========================================================================
 
 #define MyAppName "PySusNoCode"
 ; No GitHub Actions a versao vem da tag (ISCC /DMyAppVersion=X.Y.Z);
 ; este valor e o padrao para compilacoes locais.
 #ifndef MyAppVersion
-  #define MyAppVersion "1.8.0"
+  #define MyAppVersion "1.8.3"
 #endif
 #define MyAppPublisher "PySusNoCode"
 #define MyAppURL "https://pysus.readthedocs.io"
+
+; A mensagem da barra de progresso muda conforme a versao. O pre-processador
+; nao pode ser usado dentro de uma linha continuada da secao [Run], por isso
+; o texto vira uma variavel aqui em cima.
+#ifdef OFFLINE
+  #define StatusInstalar "Instalando o ambiente Python e as bibliotecas (sem internet)..."
+#else
+  #define StatusInstalar "Instalando o ambiente Python e as bibliotecas (varios minutos)..."
+#endif
 
 [Setup]
 AppId={{9C2C41E7-5B8A-4F1D-9A47-3D5C1B7A2E90}
@@ -24,11 +43,19 @@ DisableProgramGroupPage=yes
 DisableDirPage=yes
 PrivilegesRequired=lowest
 OutputDir=Output
+#ifdef OFFLINE
+OutputBaseFilename=PySusNoCode-Setup-Completo-{#MyAppVersion}
+; Os .whl ja sao arquivos comprimidos: comprimir de novo no modo maximo
+; gastaria muito tempo de compilacao para economizar quase nada.
+Compression=lzma2/normal
+SolidCompression=no
+#else
 OutputBaseFilename=PySusNoCode-Setup-{#MyAppVersion}
-SetupIconFile=assets\pysusnocode.ico
-UninstallDisplayIcon={app}\pysusnocode.ico
 Compression=lzma2/max
 SolidCompression=yes
+#endif
+SetupIconFile=assets\pysusnocode.ico
+UninstallDisplayIcon={app}\pysusnocode.ico
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -52,6 +79,11 @@ Source: "bootstrap.ps1"; DestDir: "{app}"
 Source: "assets\pysusnocode.ico"; DestDir: "{app}"
 Source: "vendor\python-embed-amd64.zip"; DestDir: "{app}\vendor"
 Source: "vendor\get-pip.py"; DestDir: "{app}\vendor"
+#ifdef OFFLINE
+; Todas as bibliotecas, em .whl. A presenca desta pasta e o que faz o
+; bootstrap.ps1 instalar sem tocar na internet.
+Source: "vendor\wheels\*"; DestDir: "{app}\vendor\wheels"; Flags: recursesubdirs
+#endif
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\python\pythonw.exe"; \
@@ -67,7 +99,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\python\pythonw.exe"; \
 [Run]
 Filename: "powershell.exe"; \
     Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\bootstrap.ps1"""; \
-    StatusMsg: "Instalando o ambiente Python e as bibliotecas (varios minutos)..."; \
+    StatusMsg: "{#StatusInstalar}"; \
     Flags: waituntilterminated
 Filename: "powershell.exe"; \
     Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""irm https://claude.ai/install.ps1 | iex"""; \

@@ -9,6 +9,12 @@ jupyter_client>=8
 ipykernel>=6
 nbformat>=5
 pysus>=2.9
+# A pysus 2.10 importa "yaml" logo no carregamento do pacote, mas esqueceu de
+# declarar o PyYAML entre as dependências dela. Sem esta linha, a instalação
+# termina "com sucesso" e o aplicativo quebra no primeiro import com
+# "ModuleNotFoundError: No module named 'yaml'". Quando a pysus corrigir isso,
+# esta linha vira redundante — e inofensiva.
+pyyaml>=6.0
 # Obrigatório para a PySUS funcionar dentro de um notebook: as funções dela
 # chamam asyncio.run(), que falha quando já existe um laço de eventos rodando.
 nest_asyncio>=1.6
