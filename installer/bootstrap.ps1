@@ -34,6 +34,15 @@ function Escrever($texto, $cor = "Gray") {
     $texto | Out-File -FilePath $log -Append -Encoding UTF8
 }
 
+function Registrar-Saida {
+    # Mostra na tela e grava no log em UTF-8. Nao usar "Tee-Object -FilePath":
+    # no Windows PowerShell ele grava em UTF-16, deixando o log ilegivel.
+    process {
+        Write-Host $_
+        ($_ | Out-String).TrimEnd() | Out-File -FilePath $log -Append -Encoding UTF8
+    }
+}
+
 function Falha($resumo, $dica) {
     Escrever ""
     Escrever "NAO FOI POSSIVEL CONCLUIR A INSTALACAO" "Red"
@@ -99,7 +108,7 @@ cmd /c "`"$pyExe`" -m pip --version >nul 2>&1"
 if ($LASTEXITCODE -ne 0) {
     Escrever "[3/4] Instalando o gerenciador de pacotes (pip)..."
     & $pyExe (Join-Path $root "vendor\get-pip.py") --no-warn-script-location 2>&1 |
-        Tee-Object -FilePath $log -Append | Out-Null
+        Registrar-Saida
     cmd /c "`"$pyExe`" -m pip --version >nul 2>&1"
     if ($LASTEXITCODE -ne 0) {
         if (-not (Testar-Internet)) {
@@ -135,7 +144,7 @@ for ($i = 1; $i -le $tentativas; $i++) {
         Escrever "Tentando novamente ($i de $tentativas)..." "Yellow"
         Start-Sleep -Seconds 5
     }
-    & $pyExe @argumentos 2>&1 | Tee-Object -FilePath $log -Append
+    & $pyExe @argumentos 2>&1 | Registrar-Saida
     if ($LASTEXITCODE -eq 0) { break }
 }
 
@@ -152,7 +161,7 @@ if ($LASTEXITCODE -ne 0) {
 Escrever ""
 Escrever "Conferindo a instalacao..."
 & $pyExe -c "import pysusnocode, pysus, PySide6, anthropic, openai, claude_agent_sdk, jupyter_client, ipykernel, nbformat, matplotlib" 2>&1 |
-    Tee-Object -FilePath $log -Append
+    Registrar-Saida
 if ($LASTEXITCODE -ne 0) {
     Falha "as bibliotecas foram baixadas, mas o aplicativo nao conseguiu carrega-las" `
           "Use o atalho 'Reparar PySusNoCode' no Menu Iniciar. Se persistir, desinstale e instale novamente."

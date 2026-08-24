@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import APP_NAME, __version__
+from ..branding import ASSINATURA, SITE, assinatura_html, logo_pixmap
 from ..config import (
     BACKEND_AGENT,
     BACKEND_API,
@@ -118,6 +119,15 @@ class MainWindow(QMainWindow):
 
         self.status_label = QLabel()
         self.statusBar().addWidget(self.status_label)
+
+        # Assinatura da Kraemer Academy, sempre visível no rodapé.
+        self.brand_logo = QLabel()
+        self.brand_logo.setToolTip(f"{ASSINATURA} — {SITE}")
+        self.statusBar().addPermanentWidget(self.brand_logo)
+        self.brand_label = QLabel()
+        self.brand_label.setOpenExternalLinks(True)
+        self.brand_label.setToolTip(f"Abrir {SITE} no navegador")
+        self.statusBar().addPermanentWidget(self.brand_label)
 
         self.login_btn.setVisible(self.config["backend"] == BACKEND_AGENT)
         self.chat.set_assistant_name(self._assistant())
@@ -520,6 +530,10 @@ class MainWindow(QMainWindow):
         app.setStyleSheet(app_stylesheet(t))
         self.chat.set_appearance(t, font_px)
         self.notebook_panel.apply_appearance(t, font_px)
+        self.brand_logo.setPixmap(logo_pixmap(16, cor=t["muted"]))
+        self.brand_label.setText(
+            assinatura_html(t["muted"], t["highlight"], max(10, font_px - 2))
+        )
         self.toolbar_widget.setStyleSheet(
             f"#barraSuperior{{background:{t['window']};"
             f"border-bottom:1px solid {t['border']};}}"

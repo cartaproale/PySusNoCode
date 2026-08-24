@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..branding import assinatura_html, logo_pixmap
 from ..nb import Cell, Notebook
 from ..theme import LIGHT
 from .cell_widget import CellWidget
@@ -100,11 +101,21 @@ class NotebookPanel(QWidget):
         self.cells_layout = QVBoxLayout(self.container)
         self.cells_layout.setAlignment(Qt.AlignTop)
         self.cells_layout.setSpacing(8)
+        # Marca d'água discreta na tela inicial (some assim que houver células).
+        self.watermark = QLabel()
+        self.watermark.setAlignment(Qt.AlignCenter)
+        self.cells_layout.addWidget(self.watermark)
+
         self.empty_label = QLabel(
             "As células criadas pela IA aparecerão aqui,\nprontas para executar, editar e copiar."
         )
         self.empty_label.setAlignment(Qt.AlignCenter)
         self.cells_layout.addWidget(self.empty_label)
+
+        self.brand_label = QLabel()
+        self.brand_label.setAlignment(Qt.AlignCenter)
+        self.brand_label.setOpenExternalLinks(True)
+        self.cells_layout.addWidget(self.brand_label)
         self.scroll.setWidget(self.container)
         layout.addWidget(self.scroll, stretch=1)
         self.apply_appearance(self.tokens, self.font_px)
@@ -124,14 +135,27 @@ class NotebookPanel(QWidget):
         )
         self.container.setStyleSheet(f"background:{t['nb_scroll_bg']};")
         self.empty_label.setStyleSheet(
-            f"color:{t['nb_empty_fg']};padding:40px;background:transparent;"
+            f"color:{t['nb_empty_fg']};padding:10px 40px 6px;background:transparent;"
         )
+        self.watermark.setPixmap(
+            logo_pixmap(96, cor=t["nb_empty_fg"], opacidade=0.30)
+        )
+        self.watermark.setStyleSheet("padding-top:36px;background:transparent;")
+        self.brand_label.setText(
+            assinatura_html(t["nb_empty_fg"], t["highlight"], max(10, font_px - 2))
+        )
+        self.brand_label.setStyleSheet("background:transparent;padding-bottom:30px;")
         for widget in self.widgets:
             widget.apply_appearance(t, font_px)
 
+    def _mostrar_tela_inicial(self, mostrar: bool) -> None:
+        """Marca d'água e textos de boas-vindas só aparecem sem células."""
+        for w in (self.watermark, self.empty_label, self.brand_label):
+            w.setVisible(mostrar)
+
     # ------------------------------------------------------------------
     def add_cell(self, cell: Cell) -> CellWidget:
-        self.empty_label.setVisible(False)
+        self._mostrar_tela_inicial(False)
         widget = CellWidget(cell, self.tokens, self.font_px)
         widget.run_requested.connect(self.run_cell_requested.emit)
         widget.fix_requested.connect(self.fix_cell_requested.emit)
@@ -165,7 +189,7 @@ class NotebookPanel(QWidget):
         self.changed.emit()
         self.renumber()
         if not self.widgets:
-            self.empty_label.setVisible(True)
+            self._mostrar_tela_inicial(True)
 
     def widget_for(self, cell: Cell) -> CellWidget | None:
         for widget in self.widgets:
@@ -186,7 +210,7 @@ class NotebookPanel(QWidget):
             widget.setParent(None)
             widget.deleteLater()
         self.widgets = []
-        self.empty_label.setVisible(True)
+        self._mostrar_tela_inicial(True)
 
     # ------------------------------------------------------------------
     def _copy_all(self) -> None:
