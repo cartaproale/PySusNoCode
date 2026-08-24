@@ -524,13 +524,11 @@ class MainWindow(QMainWindow):
     def _configurar_atalhos_zoom(self) -> None:
         """Ctrl+ + / Ctrl+ − / Ctrl+0 mudam o tamanho da letra de toda a
         interface (o mesmo ajuste do botão Aparência)."""
-        from PySide6.QtGui import QKeySequence, QShortcut
+        from .atalhos import AUMENTAR, DIMINUIR, ORIGINAL, registrar_atalhos
 
-        for sequencia in (QKeySequence.ZoomIn, QKeySequence("Ctrl+="), QKeySequence("Ctrl++")):
-            QShortcut(sequencia, self, activated=lambda: self.ajustar_letra(+1))
-        for sequencia in (QKeySequence.ZoomOut, QKeySequence("Ctrl+-")):
-            QShortcut(sequencia, self, activated=lambda: self.ajustar_letra(-1))
-        QShortcut(QKeySequence("Ctrl+0"), self, activated=lambda: self.ajustar_letra(0))
+        registrar_atalhos(self, AUMENTAR, lambda: self.ajustar_letra(+1))
+        registrar_atalhos(self, DIMINUIR, lambda: self.ajustar_letra(-1))
+        registrar_atalhos(self, ORIGINAL, lambda: self.ajustar_letra(0))
 
     def ajustar_letra(self, passo: int) -> None:
         atual = int(self.config["font_size"])

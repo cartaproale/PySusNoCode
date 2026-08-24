@@ -124,13 +124,13 @@ class OutputDialog(QDialog):
         self.caber_btn.setEnabled(tem_imagem)
 
         # --- atalhos ------------------------------------------------------
-        for sequencia in (QKeySequence.ZoomIn, QKeySequence("Ctrl+="), QKeySequence("Ctrl++")):
-            QShortcut(sequencia, self, activated=lambda: self.ajustar_zoom(+1))
-        for sequencia in (QKeySequence.ZoomOut, QKeySequence("Ctrl+-")):
-            QShortcut(sequencia, self, activated=lambda: self.ajustar_zoom(-1))
-        QShortcut(QKeySequence("Ctrl+0"), self, activated=self.zoom_original)
-        QShortcut(QKeySequence.Copy, self, activated=self.copiar_imagem)
-        QShortcut(QKeySequence.Save, self, activated=self.salvar_imagem)
+        from .atalhos import AUMENTAR, DIMINUIR, ORIGINAL, registrar_atalhos
+
+        registrar_atalhos(self, AUMENTAR, lambda: self.ajustar_zoom(+1))
+        registrar_atalhos(self, DIMINUIR, lambda: self.ajustar_zoom(-1))
+        registrar_atalhos(self, ORIGINAL, self.zoom_original)
+        registrar_atalhos(self, (QKeySequence.Copy,), self.copiar_imagem)
+        registrar_atalhos(self, (QKeySequence.Save,), self.salvar_imagem)
 
         self._render()
 
