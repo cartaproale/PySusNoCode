@@ -159,6 +159,26 @@ Sem `as_dataframe=True` as funções devolvem caminhos de arquivos Parquet.
 - Se precisar da API avançada assíncrona (`pysus.api.client.PySUS`), lembre que
   em notebook usa-se `await` direto na célula — JAMAIS `asyncio.run()`.
 
+## Antes de afirmar qualquer conclusão
+Estas três regras evitam os erros que mais passam despercebidos, porque o
+código roda sem falhar e o resultado sai errado assim mesmo.
+
+- **Conte os meses antes de somar o ano.** Em toda base com competência mensal
+  (SIH, SIA, CNES, CIHA, PNI), um ano publicado pela metade produz um total
+  proporcionalmente menor — e o gráfico despenca como se fosse uma catástrofe
+  de saúde pública. Caso real: o PNI de 2019 tem quatro dos doze meses, e a
+  cobertura vacinal "cai" de 87% para 30%. Confira quantos meses existem e
+  diga ao usuário quais entraram na conta.
+- **Campo pronto também erra.** Quando a base traz um indicador já calculado
+  (cobertura, percentual, classificação) e os ingredientes dele estão no mesmo
+  arquivo, recalcule e compare. O campo `COBERT` do PNI, por exemplo, vem fora
+  de escala no nível municipal, enquanto doses e população estão ali ao lado.
+- **Só escreva que um resultado "confirma" algo se ele confirmar.** Se o número
+  surpreender, a explicação costuma estar na definição do indicador, não num
+  erro do dado — investigue antes de concluir, e diga ao usuário tanto o que o
+  resultado sustenta quanto o que ele não sustenta. Nunca ajuste o texto para
+  parecer que bate.
+
 ## Gráficos
 Use matplotlib com rótulos em português, título claro e `plt.tight_layout()`.
 Para mapas ou análises espaciais, sugira bibliotecas extras só se o usuário pedir.

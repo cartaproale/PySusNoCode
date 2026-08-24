@@ -40,7 +40,7 @@ from ..config import (
     find_claude_cli,
     models_for,
 )
-from ..kernel import NotebookKernel
+from ..kernel import NotebookKernel, erro_de_ambiente
 from ..lessons import LessonStore
 from ..llm import make_backend
 from ..nb import STATUS_ERROR, STATUS_NEW, STATUS_OK, STATUS_RUNNING, Cell, Notebook
@@ -1029,6 +1029,20 @@ class MainWindow(QMainWindow):
                 "necessárias (as_dataframe=False + pd.read_parquet(columns=[...]))."
             )
             self._start_kernel(restart=False)
+            self._set_phase(PHASE_IDLE)
+            return
+
+        # Erro do ambiente, não do código: a IA não tem o que corrigir, e
+        # tentar só gastaria as tentativas de correção.
+        ambiente = erro_de_ambiente(error)
+        if ambiente:
+            self.fixing_cell = None
+            self.pending_queue = []
+            self.chat.add_app_note(f"⚠ Célula {index}: {ambiente}")
+            self.exec_notes.append(
+                f"A célula {index} falhou por um problema de ambiente, não de "
+                f"código: {ambiente.splitlines()[0]} Não reescreva a célula."
+            )
             self._set_phase(PHASE_IDLE)
             return
 

@@ -45,6 +45,46 @@ MENSAGEM_KERNEL_MORTO = (
 )
 
 
+# Erros que não vêm do código escrito, e sim do ambiente. Pedir correção à IA
+# nesses casos só gasta as tentativas: o código está certo, o problema está
+# fora dele. Cada entrada exige que TODAS as marcas de "sempre" apareçam e ao
+# menos uma das de "alguma", para não confundir com erro de verdade.
+ERROS_DE_AMBIENTE = (
+    {
+        "sempre": ("duckdb",),
+        "alguma": (
+            "já está sendo usado por outro processo",
+            "being used by another process",
+            "could not set lock on file",
+            "file is already open",
+        ),
+        "explicacao": (
+            "O catálogo de dados do DATASUS está aberto por outro programa.\n\n"
+            "A biblioteca PySUS guarda o índice de todas as bases num único "
+            "arquivo, e ele não pode ser usado por dois programas ao mesmo "
+            "tempo. Quase sempre há outra janela do PySusNoCode aberta, ou um "
+            "notebook rodando fora daqui.\n\n"
+            "Feche a outra janela e execute esta célula de novo. Não é preciso "
+            "mudar o código: ele está correto."
+        ),
+    },
+)
+
+
+def erro_de_ambiente(texto: str) -> str | None:
+    """Reconhece erros que não são do código e explica o que fazer.
+
+    Devolve a explicação em português, ou None se o erro for mesmo do código.
+    """
+    baixo = (texto or "").lower()
+    for caso in ERROS_DE_AMBIENTE:
+        if all(marca in baixo for marca in caso["sempre"]) and any(
+            marca in baixo for marca in caso["alguma"]
+        ):
+            return caso["explicacao"]
+    return None
+
+
 class NotebookKernel:
     def __init__(self) -> None:
         self.km = None
