@@ -1003,6 +1003,35 @@ class MainWindow(QMainWindow):
         error = result.error_summary or "(erro desconhecido)"
         max_attempts = int(self.config["max_fix_attempts"])
 
+        # O Python morreu (quase sempre falta de memória): não adianta pedir
+        # correção à IA — é preciso um kernel novo antes de qualquer coisa.
+        if getattr(result, "kernel_morreu", False):
+            self.fixing_cell = None
+            self.pending_queue = []
+            self.kernel_state = "off"
+            for outra in self.notebook.cells:
+                if outra.kind == "code" and outra.status == STATUS_OK:
+                    outra.status = STATUS_NEW
+                    w = self.notebook_panel.widget_for(outra)
+                    if w:
+                        w.refresh()
+            self.chat.add_app_note(
+                f"⚠ O Python foi encerrado ao executar a célula {index} — "
+                "normalmente por falta de memória, quando uma base do DATASUS é "
+                "grande demais para caber inteira. Estou preparando um Python novo; "
+                "quando terminar, execute as células novamente, de preferência com "
+                "um recorte menor (um estado, um mês) ou pedindo só as colunas "
+                "necessárias."
+            )
+            self.exec_notes.append(
+                f"A célula {index} encerrou o Python por consumo de memória. "
+                "Refaça essa etapa com um recorte menor ou lendo apenas as colunas "
+                "necessárias (as_dataframe=False + pd.read_parquet(columns=[...]))."
+            )
+            self._start_kernel(restart=False)
+            self._set_phase(PHASE_IDLE)
+            return
+
         if (
             self.autotest_check.isChecked()
             and not result.timed_out

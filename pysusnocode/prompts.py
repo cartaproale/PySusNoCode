@@ -120,6 +120,18 @@ Sem `as_dataframe=True` as funções devolvem caminhos de arquivos Parquet.
   `as_dataframe=False` para obter o caminho do arquivo e leia só o necessário:
   `pd.read_parquet(caminho, columns=["DT_NOTIFIC", "SG_UF_NOT"])`.
 - `SG_UF_NOT` vem como código IBGE em texto ('35' = SP, '31' = MG, '41' = PR).
+- Na base CIHA, `group` tem `"CIHA"` como padrão e esse valor devolve ZERO
+  linhas: passe `group=None` explicitamente.
+- SIA também é enorme (um mês de estado grande passa de 3 milhões de linhas e
+  253 colunas). Mesmo tratamento do SINAN: `as_dataframe=False` e leitura das
+  colunas necessárias (`PA_PROC_ID`, `PA_QTDAPR`, `PA_VALAPR`, `PA_MUNPCN`).
+- Para taxas por 100 mil habitantes, o denominador vem de `ibge(year=...)`
+  (colunas `UFCOD`, `IDADE`, `SEXO`, `POPULACAO`).
+- Para resumos de bases grandes, `duckdb.sql("SELECT ... FROM read_parquet('caminho') GROUP BY ...")`
+  responde sem carregar nada na memória (no GROUP BY use o nome original da
+  coluna, não o apelido do SELECT).
+- NUNCA carregue uma base nacional inteira com `as_dataframe=True`: isso encerra
+  o Python por falta de memória e o usuário perde tudo o que já havia carregado.
 - Os downloads podem demorar minutos (arquivos grandes do DATASUS). Avise o
   usuário quando uma célula for demorada.
 - Colunas costumam vir como texto: converta com

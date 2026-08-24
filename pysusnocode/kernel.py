@@ -28,6 +28,21 @@ class ExecResult:
     error_summary: str = ""          # ename + evalue + traceback (sem cores)
     execution_count: int | None = None
     timed_out: bool = False
+    kernel_morreu: bool = False      # o Python parou (estouro de memória, etc.)
+
+
+MENSAGEM_KERNEL_MORTO = (
+    "O Python foi encerrado no meio da execução desta célula.\n\n"
+    "A causa quase sempre é falta de memória: alguma base do DATASUS é grande "
+    "demais para ser carregada inteira (a de dengue de um ano, por exemplo, "
+    "ocupa dezenas de gigabytes).\n\n"
+    "O que costuma resolver:\n"
+    "• baixar um recorte menor (um estado, um mês);\n"
+    "• pedir só as colunas necessárias em vez da tabela inteira;\n"
+    "• fechar outros programas pesados e tentar de novo.\n\n"
+    "As variáveis carregadas antes foram perdidas — execute as células "
+    "anteriores novamente antes de continuar."
+)
 
 
 class NotebookKernel:
@@ -76,6 +91,17 @@ class NotebookKernel:
             "    import nest_asyncio as _na\n"
             "    _na.apply()\n"
             "    del _na\n"
+            "except Exception:\n"
+            "    pass\n"
+            # As tabelas do DATASUS têm de 60 a 360 colunas; com os padrões do
+            # pandas elas saem espremidas em 80 caracteres e ilegíveis.
+            "try:\n"
+            "    import pandas as _pd\n"
+            "    _pd.set_option('display.width', 180)\n"
+            "    _pd.set_option('display.max_columns', 40)\n"
+            "    _pd.set_option('display.max_colwidth', 40)\n"
+            "    _pd.set_option('display.float_format', lambda v: f'{v:,.2f}')\n"
+            "    del _pd\n"
             "except Exception:\n"
             "    pass\n"
         )
@@ -138,6 +164,22 @@ class NotebookKernel:
             try:
                 msg = self.kc.get_iopub_msg(timeout=1)
             except queue.Empty:
+                # Sem mensagem por 1s: o Python pode ter morrido (falta de
+                # memória, por exemplo). Sem esta checagem, o aplicativo
+                # esperaria o tempo limite inteiro e ainda culparia a demora.
+                if not self.alive:
+                    result.ok = False
+                    result.kernel_morreu = True
+                    result.error_summary = MENSAGEM_KERNEL_MORTO
+                    result.outputs.append(
+                        {
+                            "output_type": "error",
+                            "ename": "KernelMorto",
+                            "evalue": "O Python foi encerrado durante a execução.",
+                            "traceback": MENSAGEM_KERNEL_MORTO.splitlines(),
+                        }
+                    )
+                    break
                 continue
             if msg.get("parent_header", {}).get("msg_id") != msg_id:
                 continue
