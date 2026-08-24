@@ -31,9 +31,33 @@ _STATUS_TEXTS = {
 }
 
 
-def build_outputs_html(outputs: list[dict], doc: QTextDocument, t: dict, font_px: int) -> str:
+def imagens_das_saidas(outputs: list[dict]) -> list[QImage]:
+    """Imagens (gráficos) contidas nas saídas, em tamanho original."""
+    imagens: list[QImage] = []
+    for out in outputs:
+        if out.get("output_type") in ("execute_result", "display_data"):
+            dados = out.get("data", {})
+            if "image/png" in dados:
+                try:
+                    img = QImage.fromData(base64.b64decode(dados["image/png"]), "PNG")
+                    if not img.isNull():
+                        imagens.append(img)
+                except Exception:  # noqa: BLE001
+                    pass
+    return imagens
+
+
+def build_outputs_html(
+    outputs: list[dict],
+    doc: QTextDocument,
+    t: dict,
+    font_px: int,
+    escala: float = 1.0,
+) -> str:
     """Gera o HTML das saídas de uma célula (formato nbformat) e registra as
-    imagens como recursos do documento. Usado na célula e no modal ampliado."""
+    imagens como recursos do documento. Usado na célula e no modal ampliado.
+    `escala` amplia ou reduz texto e gráficos juntos (zoom)."""
+    font_px = max(6, int(round(font_px * escala)))
     parts = [
         f"<html><body style='font-size:{font_px}px;"
         f"color:{t['output_fg']};background:{t['output_bg']};'>"
@@ -56,7 +80,12 @@ def build_outputs_html(outputs: list[dict], doc: QTextDocument, t: dict, font_px
                     url = QUrl(f"pysusnocode://img/{counter}")
                     counter += 1
                     doc.addResource(QTextDocument.ImageResource, url, image)
-                    parts.append(f"<img src='{url.toString()}'><br>")
+                    largura = max(1, int(image.width() * escala))
+                    altura = max(1, int(image.height() * escala))
+                    parts.append(
+                        f"<img src='{url.toString()}' width='{largura}' "
+                        f"height='{altura}'><br>"
+                    )
                 except Exception:  # noqa: BLE001
                     parts.append("<i>[imagem]</i>")
             elif "text/plain" in data:
@@ -118,8 +147,8 @@ class CellWidget(QFrame):
 
             self.zoom_btn = QPushButton("🔍 Ampliar")
             self.zoom_btn.setToolTip(
-                "Ver a saída completa desta célula em uma janela grande "
-                "(gráficos e tabelas inteiros)"
+                "Ver a saída completa em uma janela grande, com zoom e opção de "
+                "copiar ou salvar o gráfico"
             )
             self.zoom_btn.clicked.connect(self.open_output_dialog)
             self.zoom_btn.setVisible(False)

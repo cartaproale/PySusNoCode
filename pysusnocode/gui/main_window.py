@@ -135,6 +135,7 @@ class MainWindow(QMainWindow):
             self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
 
         self._apply_appearance()
+        self._configurar_atalhos_zoom()
         self.chat.reset(WELCOME_HTML)
         self._greet_connection()
         self._update_status()
@@ -519,6 +520,27 @@ class MainWindow(QMainWindow):
         dialog = AppearanceDialog(self.config, self)
         if dialog.exec():
             self._apply_appearance()
+
+    def _configurar_atalhos_zoom(self) -> None:
+        """Ctrl+ + / Ctrl+ − / Ctrl+0 mudam o tamanho da letra de toda a
+        interface (o mesmo ajuste do botão Aparência)."""
+        from PySide6.QtGui import QKeySequence, QShortcut
+
+        for sequencia in (QKeySequence.ZoomIn, QKeySequence("Ctrl+="), QKeySequence("Ctrl++")):
+            QShortcut(sequencia, self, activated=lambda: self.ajustar_letra(+1))
+        for sequencia in (QKeySequence.ZoomOut, QKeySequence("Ctrl+-")):
+            QShortcut(sequencia, self, activated=lambda: self.ajustar_letra(-1))
+        QShortcut(QKeySequence("Ctrl+0"), self, activated=lambda: self.ajustar_letra(0))
+
+    def ajustar_letra(self, passo: int) -> None:
+        atual = int(self.config["font_size"])
+        novo = 13 if passo == 0 else max(11, min(24, atual + passo))
+        if novo == atual:
+            return
+        self.config["font_size"] = novo
+        self.config.save()
+        self._apply_appearance()
+        self.statusBar().showMessage(f"Tamanho da letra: {novo} px", 3000)
 
     def _apply_appearance(self) -> None:
         from PySide6.QtWidgets import QApplication
