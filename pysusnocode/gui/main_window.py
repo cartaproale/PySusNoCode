@@ -784,7 +784,16 @@ class MainWindow(QMainWindow):
             self._abort_flow()
             return
 
-        parsed = parse_response(full_text)
+        # A numeração mostrada no chat precisa bater com a posição real da
+        # célula no notebook — e, no fluxo de correção, apontar a célula que
+        # está sendo substituída.
+        if self.fixing_cell is not None and self.fixing_cell in self.notebook.cells:
+            numero_inicial = self.notebook.index_of(self.fixing_cell) + 1
+            verbo = "corrigida no"
+        else:
+            numero_inicial = len(self.notebook.cells) + 1
+            verbo = "adicionada ao"
+        parsed = parse_response(full_text, numero_inicial, verbo)
         self.chat.end_stream(parsed.chat_text or "(célula gerada)")
         self._mark_dirty()
 

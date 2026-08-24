@@ -37,7 +37,15 @@ def _strip_fence(text: str) -> str:
     return text
 
 
-def parse_response(text: str) -> ParsedResponse:
+def parse_response(
+    text: str, numero_inicial: int = 1, verbo: str = "adicionada ao"
+) -> ParsedResponse:
+    """Extrai as células da resposta.
+
+    `numero_inicial` é a posição que a primeira célula ocupará no notebook —
+    sem isso a contagem reiniciaria em cada resposta e o aviso no chat não
+    corresponderia à célula real.
+    """
     cells: list[ParsedCell] = []
 
     def _cell_placeholder(match: re.Match) -> str:
@@ -45,7 +53,8 @@ def parse_response(text: str) -> ParsedResponse:
         source = _strip_fence(match.group(2)).strip("\n")
         cells.append(ParsedCell(kind=kind, source=source))
         label = "código" if kind == "code" else "texto"
-        return f"\n📋 *célula de {label} nº{len(cells)} adicionada ao notebook*\n"
+        numero = numero_inicial + len(cells) - 1
+        return f"\n📋 *célula de {label} nº{numero} {verbo} notebook*\n"
 
     remainder = _CELL_RE.sub(_cell_placeholder, text)
 
