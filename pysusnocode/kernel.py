@@ -95,12 +95,13 @@ class NotebookKernel:
             "    pass\n"
             # As tabelas do DATASUS têm de 60 a 360 colunas; com os padrões do
             # pandas elas saem espremidas em 80 caracteres e ilegíveis.
+            # Só mexemos em quebra de linha: nada aqui pode alterar o valor
+            # mostrado, senão a mesma célula exibiria números diferentes aqui e
+            # no Colab. (Um float_format global arredondava 0,0886 para 0,09.)
             "try:\n"
             "    import pandas as _pd\n"
             "    _pd.set_option('display.width', 180)\n"
             "    _pd.set_option('display.max_columns', 40)\n"
-            "    _pd.set_option('display.max_colwidth', 40)\n"
-            "    _pd.set_option('display.float_format', lambda v: f'{v:,.2f}')\n"
             "    del _pd\n"
             "except Exception:\n"
             "    pass\n"

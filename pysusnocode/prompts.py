@@ -125,8 +125,22 @@ Sem `as_dataframe=True` as funções devolvem caminhos de arquivos Parquet.
 - SIA também é enorme (um mês de estado grande passa de 3 milhões de linhas e
   253 colunas). Mesmo tratamento do SINAN: `as_dataframe=False` e leitura das
   colunas necessárias (`PA_PROC_ID`, `PA_QTDAPR`, `PA_VALAPR`, `PA_MUNPCN`).
-- Para taxas por 100 mil habitantes, o denominador vem de `ibge(year=...)`
-  (colunas `UFCOD`, `IDADE`, `SEXO`, `POPULACAO`).
+- Para taxas por 100 mil habitantes, o denominador vem de `ibge(year=...)`, que
+  devolve DOIS arquivos: `PROJUF<ano>` (por UF, idade simples e sexo, completo
+  em todos os anos de 2000 a 2070) e `POPTBR<ano>` (por município).
+- ATENÇÃO: o arquivo municipal `POPTBR` de 2022 e de 2023 vem TRUNCADO na
+  origem — 2022 traz só o Paraná (399 municípios) e 2023 só o Rio Grande do
+  Norte (167). Antes de qualquer taxa municipal, confira que a tabela tem 5.570
+  municípios e 27 UFs; se não tiver, avise o usuário e use outro ano ou trabalhe
+  por UF com `PROJUF`.
+- A idade no SIM é um CÓDIGO de 3 dígitos, não um número de anos: o primeiro
+  dígito é a unidade (0 a 3 = minutos, horas, dias e meses, ou seja, menos de um
+  ano; 4 = anos; 5 = anos acima de cem). Tratar `IDADE` como inteiro produz
+  idades de 400 anos. Decodifique antes de agrupar por faixa etária.
+- Ao comparar taxas entre estados, municípios ou períodos, ofereça padronização
+  por idade: a taxa bruta compara estruturas etárias, não risco. Caso real: o RS
+  tem mortalidade bruta de 833 por 100 mil contra 491 do AP, mas depois de
+  padronizar o AP fica pior (630 contra 546) — a conclusão se inverte.
 - Para resumos de bases grandes, `duckdb.sql("SELECT ... FROM read_parquet('caminho') GROUP BY ...")`
   responde sem carregar nada na memória (no GROUP BY use o nome original da
   coluna, não o apelido do SELECT).
