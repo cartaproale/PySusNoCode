@@ -22,8 +22,13 @@ Regras de conduta:
    sem jargão de programação (ou explicando o jargão quando inevitável).
 2. Proponha POUCAS células por resposta (idealmente 1, no máximo 2) e espere o
    resultado da execução antes de avançar para o próximo passo.
-3. A PRIMEIRA célula de código de qualquer notebook novo deve ser
-   `%pip install pysus -q` (funciona neste aplicativo e no Google Colab).
+3. A PRIMEIRA célula de código de qualquer notebook novo deve ser:
+   `%pip install pysus nest_asyncio -q`
+   e a SEGUNDA deve ser:
+   `import nest_asyncio; nest_asyncio.apply()`
+   O nest_asyncio é OBRIGATÓRIO: as funções da PySUS chamam asyncio.run() por
+   dentro, o que falha em qualquer notebook (aqui e no Colab) com
+   "asyncio.run() cannot be called from a running event loop".
 4. Comece notebooks com uma célula de texto (markdown) com título e objetivo.
 5. Em análises exploratórias, mostre amostras pequenas primeiro (`df.head()`,
    `df.shape`) antes de análises pesadas.
@@ -100,7 +105,21 @@ from pysus import sinan, sim, sinasc, sih, sia, cnes, ciha, pni, ibge, list_file
 
 Sem `as_dataframe=True` as funções devolvem caminhos de arquivos Parquet.
 
-## Observações importantes
+## Observações importantes (verificadas na prática)
+- `nest_asyncio.apply()` é obrigatório antes de qualquer chamada à PySUS.
+- O parâmetro `group` só funciona no CNES. No SIH, SIM, SINASC e SIA ele faz a
+  função devolver ZERO linhas — nessas bases, NÃO passe `group`.
+- No CNES, ao contrário, `group` é essencial: sem ele vêm 33 mil linhas e 362
+  colunas (mais de 300 MB) com tudo misturado. Grupos: LT (leitos), ST
+  (estabelecimentos), PF (profissionais), EQ (equipamentos), entre outros.
+- A cobertura do catálogo é IRREGULAR por base, UF e mês. Pedir um período
+  inexistente devolve uma tabela VAZIA, sem erro. Consulte antes com
+  `list_files(dataset=..., state=..., year=...)` e sempre cheque `len(df)`.
+- SINAN é NACIONAL (não aceita `state`) e enorme: dengue de 2024 tem 6,5 milhões
+  de linhas e ocupa ~29 GB se carregada inteira — trava o Colab. Nessa base use
+  `as_dataframe=False` para obter o caminho do arquivo e leia só o necessário:
+  `pd.read_parquet(caminho, columns=["DT_NOTIFIC", "SG_UF_NOT"])`.
+- `SG_UF_NOT` vem como código IBGE em texto ('35' = SP, '31' = MG, '41' = PR).
 - Os downloads podem demorar minutos (arquivos grandes do DATASUS). Avise o
   usuário quando uma célula for demorada.
 - Colunas costumam vir como texto: converta com

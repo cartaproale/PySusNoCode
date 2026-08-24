@@ -9,5 +9,8 @@ jupyter_client>=8
 ipykernel>=6
 nbformat>=5
 pysus>=2.9
+# Obrigatório para a PySUS funcionar dentro de um notebook: as funções dela
+# chamam asyncio.run(), que falha quando já existe um laço de eventos rodando.
+nest_asyncio>=1.6
 matplotlib>=3.8
 openpyxl>=3.1

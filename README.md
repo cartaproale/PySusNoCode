@@ -37,6 +37,18 @@ biblioteca [PySUS](https://pysus.readthedocs.io/en/latest/).
   interface. Todas as cores de texto são explícitas — o app fica legível
   independentemente do modo claro/escuro do Windows.
 
+## Notebooks de exemplo
+
+Precisa de um ponto de partida? O repositório
+**[PySusNoCode-Exemplos](https://github.com/cartaproale/PySusNoCode-Exemplos)**
+traz análises prontas (leitos, dengue, mortalidade, nascimentos), todas
+validadas com dados reais — é só abrir no Colab e trocar o estado e o ano.
+
+> Nem este repositório nem o de exemplos são a biblioteca **PySUS**: ela é
+> mantida pelo AlertaDengue/Fiocruz em
+> [AlertaDengue/PySUS](https://github.com/AlertaDengue/PySUS) e é usada aqui
+> como dependência.
+
 ## Vídeo tutorial
 
 ▶ **[Como usar o PySusNoCode (YouTube)](https://youtu.be/MWqOzsnJxtY)** — também

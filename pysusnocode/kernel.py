@@ -63,9 +63,24 @@ class NotebookKernel:
         self._setup()
 
     def _setup(self) -> None:
-        """Ativa gráficos inline (como no Jupyter/Colab); ignora se faltar matplotlib."""
+        """Prepara o kernel como um notebook do Colab.
+
+        O nest_asyncio é obrigatório para a biblioteca PySUS: as funções dela
+        chamam asyncio.run() internamente, o que falha dentro de um kernel
+        Jupyter ("asyncio.run() cannot be called from a running event loop").
+        Aplicar aqui garante que funcione mesmo que a célula não peça.
+        """
+        preparo = (
+            "%matplotlib inline\n"
+            "try:\n"
+            "    import nest_asyncio as _na\n"
+            "    _na.apply()\n"
+            "    del _na\n"
+            "except Exception:\n"
+            "    pass\n"
+        )
         try:
-            self.execute("%matplotlib inline", timeout=30)
+            self.execute(preparo, timeout=60)
         except Exception:  # noqa: BLE001
             pass
 

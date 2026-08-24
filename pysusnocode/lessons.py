@@ -19,8 +19,13 @@ MAX_LESSONS_STORED = 200
 
 # Lições pré-carregadas com armadilhas conhecidas do PySUS em notebooks.
 SEED_LESSONS = [
-    "Em notebooks (Jupyter/Colab) NUNCA use asyncio.run(): o loop de eventos ja esta rodando. Use 'await' direto na celula (top-level await) ou prefira as funcoes sincronas de alto nivel do pysus (sinan, sim, sinasc, sih, sia, cnes, pni, ibge).",
-    "A primeira celula de codigo deve ser '%pip install pysus -q' — funciona tanto neste aplicativo quanto no Google Colab.",
+    "As funcoes do pysus chamam asyncio.run() por dentro e falham em qualquer notebook ('asyncio.run() cannot be called from a running event loop'). Antes de usar a biblioteca rode: import nest_asyncio; nest_asyncio.apply().",
+    "A primeira celula de codigo deve ser '%pip install pysus nest_asyncio -q' e a segunda 'import nest_asyncio; nest_asyncio.apply()' — funciona neste aplicativo e no Google Colab.",
+    "O parametro group so funciona no CNES. Em SIH, SIM, SINASC e SIA, passar group faz a funcao devolver ZERO linhas: nessas bases nao passe group.",
+    "No CNES o group e essencial: sem ele o download traz 33 mil linhas e 362 colunas (mais de 300 MB) com todos os grupos misturados. Use group='LT' para leitos, 'ST' para estabelecimentos, 'PF' para profissionais.",
+    "Pedir um periodo inexistente no catalogo devolve tabela VAZIA, sem erro. Consulte antes com list_files(dataset=..., state=..., year=...) e verifique len(df) depois de baixar.",
+    "SINAN e nacional (nao aceita state) e gigantesco: dengue de 2024 tem 6,5 milhoes de linhas e ~29 GB em memoria se carregada inteira. Use as_dataframe=False e leia so as colunas necessarias com pd.read_parquet(caminho, columns=[...]).",
+    "SG_UF_NOT do SINAN vem como codigo IBGE em texto ('35'=SP, '31'=MG, '41'=PR), nao como sigla.",
     "Prefira as funcoes de alto nivel do pysus 2.x com as_dataframe=True para receber um pandas.DataFrame pronto (ex.: sinan(disease='DENG', year=2024, as_dataframe=True)).",
     "Downloads do DATASUS podem demorar varios minutos; em testes iniciais baixe apenas 1 ano e, quando o dataset for estadual, apenas 1 UF.",
     "Codigo encontrado na internet com 'from pysus.online_data import ...' ou 'from pysus.ftp.databases ...' e da versao 1.x (antiga). Na 2.x use 'from pysus import sinan, sim, ...' ou o orquestrador pysus.api.client.PySUS.",
