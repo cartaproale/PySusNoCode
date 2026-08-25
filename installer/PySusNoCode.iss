@@ -18,7 +18,7 @@
 ; No GitHub Actions a versao vem da tag (ISCC /DMyAppVersion=X.Y.Z);
 ; este valor e o padrao para compilacoes locais.
 #ifndef MyAppVersion
-  #define MyAppVersion "1.8.4"
+  #define MyAppVersion "1.8.5"
 #endif
 #define MyAppPublisher "PySusNoCode"
 #define MyAppURL "https://pysus.readthedocs.io"
@@ -79,6 +79,9 @@ Source: "bootstrap.ps1"; DestDir: "{app}"
 Source: "assets\pysusnocode.ico"; DestDir: "{app}"
 Source: "vendor\python-embed-amd64.zip"; DestDir: "{app}\vendor"
 Source: "vendor\get-pip.py"; DestDir: "{app}\vendor"
+; Notebooks de exemplo, ~3 MB. Vao nas duas versoes do instalador: e o que faz
+; a lista de exemplos abrir na hora e funcionar sem internet.
+Source: "exemplos\*"; DestDir: "{app}\exemplos"; Flags: recursesubdirs createallsubdirs
 #ifdef OFFLINE
 ; Todas as bibliotecas, em .whl. A presenca desta pasta e o que faz o
 ; bootstrap.ps1 instalar sem tocar na internet.

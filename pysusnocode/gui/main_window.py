@@ -14,8 +14,10 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
+    QDialog,
     QFileDialog,
     QFrame,
     QLabel,
@@ -105,6 +107,7 @@ class MainWindow(QMainWindow):
         self.notebook_panel.restart_kernel_requested.connect(self.on_restart_kernel)
         self.notebook_panel.save_requested.connect(self.on_save_notebook)
         self.notebook_panel.open_requested.connect(self.on_open_notebook)
+        self.notebook_panel.examples_requested.connect(self.on_open_example)
         self.notebook_panel.changed.connect(self._mark_dirty)
         splitter.addWidget(self.notebook_panel)
         splitter.setSizes([520, 840])
@@ -665,6 +668,86 @@ class MainWindow(QMainWindow):
                 "em “Upload” e escolha esse arquivo.",
             )
         return True
+
+    def on_open_example(self) -> None:
+        """Abre uma das análises prontas do repositório de exemplos."""
+        if self.phase != PHASE_IDLE:
+            QMessageBox.information(self, "Aguarde", "Espere a tarefa atual terminar.")
+            return
+        if not self._resolve_unsaved("antes de abrir um exemplo"):
+            return
+
+        from .. import exemplos as cat
+        from .exemplos_dialog import ExemplosDialog
+
+        janela = ExemplosDialog(int(self.config["font_size"]), self)
+        if janela.exec() != QDialog.Accepted or not janela.escolhido:
+            return
+        escolhido = janela.escolhido
+
+        # O download pode levar alguns segundos: alguns exemplos passam de
+        # 300 KB por causa dos gráficos já salvos.
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            caminho, origem = cat.obter_notebook(escolhido["arquivo"])
+        except Exception as exc:  # noqa: BLE001
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(
+                self,
+                "Não consegui abrir o exemplo",
+                f"O exemplo “{escolhido.get('titulo','')}” não pôde ser obtido.\n\n"
+                f"{exc}\n\nSe a rede deste computador for controlada, você pode ver "
+                f"os exemplos pelo navegador em {cat.PAGINA}.",
+            )
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        from ..nb import Notebook
+
+        temp = Notebook()
+        try:
+            temp.load_ipynb(str(caminho))
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(
+                self, "Erro ao abrir", f"Não consegui ler o exemplo:\n{exc}"
+            )
+            return
+
+        self.notebook_panel.clear()
+        self.notebook.cells = temp.cells
+        for cell in self.notebook.cells:
+            self.notebook_panel.add_cell(cell)
+
+        self.backend.reset()
+        self.chat.reset(WELCOME_HTML)
+        self.exec_notes = []
+        self.fixing_cell = None
+        self.pending_queue = []
+        # De propósito sem caminho salvo: o exemplo é um ponto de partida, e
+        # "Salvar" deve perguntar onde gravar em vez de sobrescrever a cópia
+        # baixada, que fica numa pasta temporária.
+        self.saved_path = None
+        self.dirty = False
+        self._update_title()
+
+        procedencia = (
+            "baixado agora do GitHub, na versão mais recente"
+            if origem == cat.ORIGEM_GITHUB
+            else "aberto da cópia que veio no instalador"
+        )
+        self.chat.add_app_note(
+            f"📚 Exemplo aberto: <b>{escolhido.get('titulo','')}</b> "
+            f"({len(self.notebook.cells)} células, {procedencia}).<br><br>"
+            "As saídas que você vê são as da última validação. Para rodar com "
+            "dados de agora, clique em “▶▶ Executar tudo”. Se quiser adaptar — "
+            "outro estado, outro ano, outro recorte — é só pedir aqui no chat."
+        )
+        self.exec_notes.append(
+            f"O usuário abriu o exemplo pronto “{escolhido.get('titulo','')}” "
+            f"({escolhido['arquivo']}). Ele já funciona; ao alterar, preserve a "
+            "estrutura e explique o que mudou."
+        )
 
     def on_open_notebook(self) -> None:
         if self.phase != PHASE_IDLE:

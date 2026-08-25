@@ -183,6 +183,23 @@ código roda sem falhar e o resultado sai errado assim mesmo.
 Use matplotlib com rótulos em português, título claro e `plt.tight_layout()`.
 Para mapas ou análises espaciais, sugira bibliotecas extras só se o usuário pedir.
 
+# EXEMPLOS PRONTOS DISPONÍVEIS NO APLICATIVO
+O aplicativo traz análises já feitas e validadas, que o usuário abre pelo botão
+**📚 Exemplos**, no alto do painel do notebook. Elas foram executadas do início
+ao fim com dados reais antes de publicadas.
+
+Quando o usuário pedir "os exemplos", disser que não sabe por onde começar, ou
+descrever algo que um exemplo já responde:
+1. diga que existe um exemplo pronto e qual é o título dele;
+2. mande clicar em **📚 Exemplos** e escolher pelo nome — é mais rápido e mais
+   seguro do que refazer do zero;
+3. ofereça-se para adaptar depois (outro estado, outro ano, outro recorte).
+
+Nunca invente títulos: use apenas os da lista abaixo. Se nada servir, diga isso
+e monte a análise normalmente.
+
+{EXEMPLOS}
+
 # LIÇÕES APRENDIDAS EM SESSÕES ANTERIORES
 O aplicativo registra erros que já aconteceram e como evitá-los. Respeite estas
 lições ao gerar código:
@@ -213,9 +230,35 @@ foram executadas com sucesso. Saída resumida da célula {cell_number}:
 Se a saída indicar o próximo passo natural, aguarde o usuário pedir.)"""
 
 
+def bloco_de_exemplos() -> str:
+    """Lista curta dos exemplos prontos, para o assistente citar pelo nome.
+
+    Sai da cópia local do catálogo (a que veio no instalador), e não da rede:
+    montar o prompt não pode depender de internet nem esperar por ela.
+    """
+    try:
+        from .exemplos import carregar_catalogo
+
+        exemplos, _origem, _aviso = carregar_catalogo(preferir_github=False)
+    except Exception:  # noqa: BLE001
+        exemplos = []
+    if not exemplos:
+        return "- (a lista de exemplos não está disponível nesta instalação)"
+
+    linhas = []
+    for item in exemplos:
+        base = f" [{item['base']}]" if item.get("base") else ""
+        linhas.append(f"- {item.get('titulo', '')}{base}: {item.get('descricao', '')[:160]}")
+    return "\n".join(linhas)
+
+
 def build_system_prompt(lessons_block: str) -> str:
     lessons = lessons_block.strip() or "- (ainda não há lições registradas)"
-    return SYSTEM_PROMPT_BASE.replace("{LESSONS}", lessons)
+    return (
+        SYSTEM_PROMPT_BASE
+        .replace("{LESSONS}", lessons)
+        .replace("{EXEMPLOS}", bloco_de_exemplos())
+    )
 
 
 WELCOME_HTML = """
@@ -224,13 +267,20 @@ Eu crio, passo a passo, um notebook Python que baixa e analisa dados públicos d
 saúde do DATASUS usando a biblioteca <b>PySUS</b> — e eu mesmo testo cada célula
 antes de você usar. Ao final, você pode salvar o notebook e abri-lo no Google
 Colab, se quiser.<br><br>
-<b>Experimente pedir, por exemplo:</b>
+<b>Duas formas de começar</b><br><br>
+<b>1. Abrir uma análise pronta.</b> Há <b>27 exemplos validados</b> — mortalidade
+infantil, internações evitáveis, cobertura vacinal, dengue, leitos por
+habitante… Todos foram executados com dados reais antes de publicados. Clique
+em <b>📚 Exemplos</b>, no alto do notebook, escolha um e ele abre aqui, pronto
+para executar ou adaptar. É o caminho mais rápido, e você pode só olhar a lista
+antes de decidir.<br><br>
+<b>2. Pedir do seu jeito.</b> Escreva abaixo o que quer saber, em português:
 <ul>
 <li>“Baixar os casos de dengue notificados em 2024 e mostrar os 10 municípios com mais casos.”</li>
 <li>“Quantas internações por asma houve no Ceará em janeiro de 2024?”</li>
 <li>“Gráfico da mortalidade infantil em São Paulo entre 2019 e 2023.”</li>
 </ul>
-Escreva seu pedido abaixo e clique em <b>Enviar</b>. 💬<br><br>
+Se preferir, peça aqui mesmo: <i>“me mostre os exemplos prontos”</i>. 💬<br><br>
 🎥 Primeira vez por aqui? Assista ao
 <a href="{VIDEO_TUTORIAL}">vídeo tutorial</a> (abre no navegador) — ou clique em
 <b>🎥 Tutorial</b> na barra acima a qualquer momento.

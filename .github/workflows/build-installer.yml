@@ -59,6 +59,12 @@ jobs:
             choco install innosetup --no-progress -y
           }
 
+      # Os exemplos vao dentro das duas versoes: a lista precisa abrir mesmo
+      # onde a rede e bloqueada.
+      - name: Trazer os notebooks de exemplo
+        shell: pwsh
+        run: pwsh -File "installer\copiar_exemplos.ps1"
+
       - name: Compilar o instalador enxuto
         shell: pwsh
         run: |

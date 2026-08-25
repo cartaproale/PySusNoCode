@@ -31,6 +31,7 @@ class NotebookPanel(QWidget):
     cell_deleted = Signal(object)            # Cell
     save_requested = Signal()
     open_requested = Signal()
+    examples_requested = Signal()
     changed = Signal()                       # qualquer alteração no notebook
 
     def __init__(self, notebook: Notebook, parent=None):
@@ -59,6 +60,14 @@ class NotebookPanel(QWidget):
         add_btn.setToolTip("Adicionar uma célula de código vazia")
         add_btn.clicked.connect(self._add_empty_cell)
         header.addWidget(add_btn)
+
+        examples_btn = QPushButton("📚 Exemplos")
+        examples_btn.setToolTip(
+            "Abrir uma das análises prontas e validadas do repositório de "
+            "exemplos — serve como resposta pronta ou ponto de partida"
+        )
+        examples_btn.clicked.connect(self.examples_requested.emit)
+        header.addWidget(examples_btn)
 
         open_btn = QPushButton("📂 Abrir")
         open_btn.setToolTip(
