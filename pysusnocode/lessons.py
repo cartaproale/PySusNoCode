@@ -14,7 +14,10 @@ from datetime import date
 
 from .config import APP_DIR, LESSONS_FILE
 
-MAX_LESSONS_IN_PROMPT = 40
+# Teto de lições que vão para o prompt. Precisa folgar sobre a quantidade de
+# lições pré-carregadas, porque essas nunca são cortadas — a folga é o espaço
+# das lições que o aplicativo aprendeu sozinho.
+MAX_LESSONS_IN_PROMPT = 60
 MAX_LESSONS_STORED = 200
 
 # Lições pré-carregadas com armadilhas conhecidas do PySUS em notebooks.
@@ -69,20 +72,46 @@ class LessonStore:
 
     # ------------------------------------------------------------------
     def load(self) -> None:
+        """Carrega as lições, juntando as guardadas com as desta versão.
+
+        Cuidado histórico: até a versão 1.8.3 este método só criava o arquivo
+        quando ele ainda não existia. Quem já tinha o aplicativo instalado
+        ficava congelado nas lições da primeira instalação e nunca recebia as
+        novas — o aplicativo atualizava, e a parte que ele sabe sobre o
+        DATASUS, não.
+        """
+        guardadas: list[dict] = []
         try:
             if LESSONS_FILE.exists():
-                self.lessons = json.loads(LESSONS_FILE.read_text(encoding="utf-8"))
-            else:
-                self.lessons = [
-                    {"licao": t, "origem": "pre-carregada", "data": str(date.today())}
-                    for t in SEED_LESSONS
-                ]
-                self.save()
-        except Exception:
-            self.lessons = [
-                {"licao": t, "origem": "pre-carregada", "data": str(date.today())}
-                for t in SEED_LESSONS
-            ]
+                carregado = json.loads(LESSONS_FILE.read_text(encoding="utf-8"))
+                if isinstance(carregado, list):
+                    guardadas = [x for x in carregado if isinstance(x, dict) and x.get("licao")]
+        except Exception:  # noqa: BLE001
+            guardadas = []          # arquivo corrompido: recomeça das sementes
+
+        self.lessons = self._sincronizar(guardadas)
+        try:
+            self.save()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _sincronizar(self, guardadas: list[dict]) -> list[dict]:
+        """Junta o que o aplicativo aprendeu sozinho com as lições da versão.
+
+        As lições aprendidas com erros reais são do usuário e ficam sempre.
+        As pré-carregadas são nossas e passam a ser as desta versão: se uma
+        saiu do código, saiu porque foi corrigida ou superada, e mantê-la faria
+        o assistente seguir uma regra que já sabemos errada.
+        """
+        aprendidas = [x for x in guardadas if x.get("origem") != "pre-carregada"]
+        ja_conhecidas = {self._norm(x["licao"]) for x in aprendidas}
+        hoje = str(date.today())
+        sementes = [
+            {"licao": texto, "origem": "pre-carregada", "data": hoje}
+            for texto in SEED_LESSONS
+            if self._norm(texto) not in ja_conhecidas
+        ]
+        return sementes + aprendidas
 
     def save(self) -> None:
         APP_DIR.mkdir(parents=True, exist_ok=True)
@@ -113,12 +142,26 @@ class LessonStore:
         return True
 
     def for_prompt(self) -> str:
-        """Bloco de texto com as lições, para injetar no prompt de sistema."""
-        recent = self.lessons[-MAX_LESSONS_IN_PROMPT:]
-        if not recent:
+        """Bloco de texto com as lições, para injetar no prompt de sistema.
+
+        As pré-carregadas nunca são cortadas: são elas que evitam os erros que
+        travam o notebook (o nest_asyncio, o group de cada base, as bases que
+        estouram a memória). Um corte simples pelas últimas do arquivo
+        derrubaria justamente as primeiras da lista, que são as mais básicas.
+        Quando não cabe tudo, quem sai são as aprendidas mais antigas.
+        """
+        sementes = [x for x in self.lessons if x.get("origem") == "pre-carregada"]
+        aprendidas = [x for x in self.lessons if x.get("origem") != "pre-carregada"]
+
+        espaco = MAX_LESSONS_IN_PROMPT - len(sementes)
+        if espaco > 0:
+            selecionadas = sementes + aprendidas[-espaco:]
+        else:
+            selecionadas = sementes
+
+        if not selecionadas:
             return ""
-        lines = "\n".join(f"- {item['licao']}" for item in recent)
-        return lines
+        return "\n".join(f"- {item['licao']}" for item in selecionadas)
 
     def count(self) -> int:
         return len(self.lessons)
