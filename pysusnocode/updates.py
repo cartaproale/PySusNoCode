@@ -75,10 +75,12 @@ def verificar() -> Atualizacao | None:
     return Atualizacao(versao=tag.lstrip("vV"), notas=notas)
 
 
-def deve_verificar_hoje(ultima_verificacao: str) -> bool:
-    """Uma consulta por dia é suficiente."""
-    return (ultima_verificacao or "") != str(date.today())
-
-
 def marca_de_hoje() -> str:
+    """Data da última consulta, guardada apenas como registro.
+
+    Até a versão 1.8.5 esta data também servia de trava: o aplicativo
+    verificava uma vez por dia. Deixou de travar — agora a consulta acontece a
+    cada abertura, para que uma correção importante não demore um dia inteiro
+    para chegar a quem já tem o programa instalado.
+    """
     return str(date.today())

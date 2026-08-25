@@ -18,7 +18,7 @@
 ; No GitHub Actions a versao vem da tag (ISCC /DMyAppVersion=X.Y.Z);
 ; este valor e o padrao para compilacoes locais.
 #ifndef MyAppVersion
-  #define MyAppVersion "1.8.5"
+  #define MyAppVersion "1.8.6"
 #endif
 #define MyAppPublisher "PySusNoCode"
 #define MyAppURL "https://pysus.readthedocs.io"
@@ -114,3 +114,4 @@ Filename: "{app}\python\pythonw.exe"; Parameters: "-m pysusnocode"; \
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
+

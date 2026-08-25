@@ -412,13 +412,16 @@ class MainWindow(QMainWindow):
     # Verificação de novas versões
     # ------------------------------------------------------------------
     def _check_updates_if_due(self) -> None:
-        """Consulta a última versão publicada (uma vez por dia, em segundo
-        plano). Pode ser desligada nas Configurações."""
-        from ..updates import deve_verificar_hoje
+        """Consulta a última versão publicada a cada abertura do aplicativo.
 
+        A consulta roda em segundo plano e não atrasa nada: se a rede estiver
+        bloqueada — como em unidades de saúde e prefeituras — ela falha em
+        silêncio. A verificação diária de antes deixava o usuário até um dia
+        inteiro sem saber de uma correção importante; como o aplicativo é
+        aberto poucas vezes ao dia, verificar sempre custa uma requisição.
+        Pode ser desligada nas Configurações.
+        """
         if not self.config["check_updates"]:
-            return
-        if not deve_verificar_hoje(self.config["last_update_check"]):
             return
         self._start_update_check(manual=False)
 

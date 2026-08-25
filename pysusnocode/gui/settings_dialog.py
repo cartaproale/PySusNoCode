@@ -182,8 +182,9 @@ class SettingsDialog(QDialog):
             "Avisar quando houver uma nova versão do PySusNoCode"
         )
         self.updates_check.setToolTip(
-            "Consulta uma vez por dia a página oficial de versões no GitHub. "
-            "Nenhum dado seu é enviado e nada é instalado automaticamente."
+            "Consulta a página oficial de versões no GitHub sempre que o "
+            "aplicativo é aberto. Nenhum dado seu é enviado e nada é instalado "
+            "automaticamente."
         )
         self.updates_check.setChecked(bool(config["check_updates"]))
         form.addRow(self.updates_check)

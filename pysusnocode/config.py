@@ -62,8 +62,8 @@ DEFAULTS = {
     "autotest": True,
     "max_fix_attempts": 3,
     "cell_timeout": 600,       # segundos; downloads do DATASUS podem demorar
-    "check_updates": True,     # avisar quando houver versão nova
-    "last_update_check": "",   # data da última consulta (uma por dia)
+    "check_updates": True,     # verificar versão nova a cada abertura
+    "last_update_check": "",   # data da última consulta (só registro)
     "theme": "claro",          # "claro" | "escuro" (acessibilidade)
     "font_size": 13,           # px, para chat e células (acessibilidade)
     "always_on_top": False,    # janela do app acima de todas as outras
