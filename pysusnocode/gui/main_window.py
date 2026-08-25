@@ -11,7 +11,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
@@ -88,6 +88,9 @@ class MainWindow(QMainWindow):
         self.dirty = False
         self.update_worker: UpdateCheckWorker | None = None
         self.pending_update = None
+        # Fica verdadeiro quando o próprio aplicativo pediu para se encerrar
+        # a fim de liberar os arquivos para o instalador da versão nova.
+        self.encerrando_para_atualizar = False
 
         self._update_title()
         self.resize(1360, 840)
@@ -459,10 +462,10 @@ class MainWindow(QMainWindow):
         self.chat.add_app_note(
             f"⬇ Uma nova versão do PySusNoCode está disponível: "
             f"{atualizacao.versao} (você está na {__version__}). Clique em "
-            "“⬇ Atualização {v}” na barra acima para baixar — a instalação é por "
-            "cima, mantendo suas configurações e notebooks.".replace(
-                "{v}", atualizacao.versao
-            )
+            "“⬇ Atualização {v}” na barra acima: eu abro a página de download e "
+            "encerro o programa, para que o instalador substitua os arquivos sem "
+            "disputa. A instalação é por cima e mantém suas configurações, "
+            "lições e notebooks salvos.".replace("{v}", atualizacao.versao)
         )
 
     def _on_update_failed(self, erro: str, manual: bool) -> None:
@@ -492,26 +495,67 @@ class MainWindow(QMainWindow):
         notas = (atualizacao.notas if atualizacao else "") or ""
         texto = (
             f"A versão {versao} está disponível (você usa a {__version__}).\n\n"
-            "Ao confirmar, abro a página de download no seu navegador. Baixe o "
-            "arquivo PySusNoCode-Setup.exe e execute-o: a instalação é feita por "
-            "cima da atual e preserva suas configurações, lições aprendidas e "
-            "notebooks salvos.\n\nFeche o PySusNoCode antes de instalar."
-        )
+            "Ao confirmar, abro a página de download no seu navegador e "
+            "**fecho o PySusNoCode**, para que o instalador possa substituir os "
+            "arquivos do programa sem disputa. A instalação é feita por cima da "
+            "atual e preserva suas configurações, lições aprendidas e notebooks "
+            "salvos.\n\n"
+            "Se houver trabalho não salvo, vou perguntar antes de fechar."
+        ).replace("**", "")
         if notas:
             texto += f"\n\nNovidades desta versão:\n{notas}"
-        resposta = QMessageBox.question(
-            self,
-            "Atualizar o PySusNoCode",
-            texto,
-            QMessageBox.Open | QMessageBox.Cancel,
-            QMessageBox.Open,
+
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle("Atualizar o PySusNoCode")
+        caixa.setText(texto)
+        caixa.setIcon(QMessageBox.Question)
+        baixar_fechar = caixa.addButton(
+            "Baixar e fechar o programa", QMessageBox.AcceptRole
         )
-        if resposta == QMessageBox.Open:
+        baixar_fechar.setToolTip(
+            "Abre a página de download e encerra o PySusNoCode, deixando o "
+            "caminho livre para o instalador"
+        )
+        so_baixar = caixa.addButton(
+            "Só abrir a página, sem fechar", QMessageBox.ActionRole
+        )
+        so_baixar.setToolTip(
+            "Útil se você quiser apenas ver as novidades e instalar mais tarde"
+        )
+        caixa.addButton("Cancelar", QMessageBox.RejectRole)
+        caixa.setDefaultButton(baixar_fechar)
+        caixa.exec()
+        escolhido = caixa.clickedButton()
+
+        if escolhido is so_baixar:
             webbrowser.open(PAGINA_RELEASE)
             self.chat.add_app_note(
-                "Abri a página de download no navegador. Depois de baixar, feche o "
-                "PySusNoCode e execute o instalador."
+                "Abri a página de download no navegador. <b>Feche o PySusNoCode "
+                "antes de executar o instalador</b> — instalar com o programa "
+                "aberto pode deixar arquivos velhos para trás e abrir duas "
+                "janelas depois."
             )
+            return
+
+        if escolhido is not baixar_fechar:
+            return
+
+        # Trata o trabalho não salvo ANTES de abrir o navegador: perguntar
+        # sobre salvar depois que a página abriu confunde, e o usuário pode
+        # nem ver a pergunta atrás da janela do navegador.
+        if not self._resolve_unsaved("antes de fechar para atualizar"):
+            self.chat.add_app_note(
+                "Atualização adiada — nada foi fechado. Clique de novo em "
+                f"“⬇ Atualização {versao}” quando quiser."
+            )
+            return
+
+        webbrowser.open(PAGINA_RELEASE)
+        # Já resolvemos o que havia para salvar; sem isto o closeEvent
+        # perguntaria de novo pela mesma coisa.
+        self.dirty = False
+        self.encerrando_para_atualizar = True
+        QTimer.singleShot(1200, self.close)
 
     def on_tutorial(self) -> None:
         import webbrowser
