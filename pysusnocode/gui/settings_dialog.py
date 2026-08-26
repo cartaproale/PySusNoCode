@@ -148,11 +148,13 @@ class SettingsDialog(QDialog):
 
         self.openai_model_edit = QLineEdit(config["openai_custom_model"])
         self.openai_model_edit.setPlaceholderText(
-            "opcional — ex.: gpt-5.6-terra (deixe vazio para usar a lista da barra)"
+            "opcional — ex.: gpt-5-nano (aparecerá na lista “Modelo” da barra)"
         )
         self.openai_model_edit.setToolTip(
             "Se a OpenAI lançar um modelo novo que ainda não está na lista do "
-            "aplicativo, digite aqui o identificador dele."
+            "aplicativo, digite aqui o identificador dele. Ele passa a aparecer "
+            "na lista “Modelo”, na barra superior, como “Personalizado: …”, e "
+            "você escolhe ali quando usá-lo. Deixe vazio para remover a opção."
         )
         form.addRow("Modelo GPT personalizado:", self.openai_model_edit)
 

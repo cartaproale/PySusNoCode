@@ -409,11 +409,11 @@ class OpenAIBackend:
                 "OpenAI”. Você a obtém em platform.openai.com/api-keys (é preciso ter "
                 "créditos na conta)."
             )
-        model = (
-            (self.config["openai_custom_model"] or "").strip()
-            or model
-            or "gpt-5.6-terra"
-        )
+        # O modelo vem da lista da barra superior, onde o personalizado (se
+        # houver) aparece como mais uma opção. Até a versão 1.8.8 o
+        # personalizado era imposto aqui, atropelando a escolha do usuário: a
+        # barra mostrava um modelo e a requisição usava outro.
+        model = model or "gpt-5.6-terra"
 
         messages = (
             [{"role": "system", "content": system_prompt}]

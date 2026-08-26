@@ -41,9 +41,24 @@ OPENAI_MODELS = [
 MODELS = CLAUDE_MODELS  # compatibilidade
 
 
-def models_for(backend: str):
-    """Lista de modelos oferecida para cada modo de conexão."""
-    return OPENAI_MODELS if backend == BACKEND_OPENAI else CLAUDE_MODELS
+ROTULO_PERSONALIZADO = "Personalizado: {}"
+
+
+def models_for(backend: str, custom_model: str = ""):
+    """Lista de modelos oferecida para cada modo de conexão.
+
+    Quando o usuário cadastra um modelo GPT próprio nas Configurações, ele
+    entra na lista como mais uma opção — visível e selecionável. Antes o
+    modelo personalizado era usado em silêncio, e a barra continuava exibindo
+    outro nome; quem escolhesse "GPT-5.6 Terra" recebia o personalizado sem
+    ficar sabendo.
+    """
+    if backend != BACKEND_OPENAI:
+        return CLAUDE_MODELS
+    custom = (custom_model or "").strip()
+    if not custom:
+        return OPENAI_MODELS
+    return OPENAI_MODELS + [(ROTULO_PERSONALIZADO.format(custom), custom)]
 
 
 def assistant_name(backend: str) -> str:
@@ -58,6 +73,10 @@ DEFAULTS = {
     "api_key": "",             # chave da Anthropic
     "openai_api_key": "",      # chave da OpenAI
     "openai_custom_model": "", # id de modelo GPT digitado pelo usuário (opcional)
+    # Marca que o modelo personalizado já foi oferecido na barra e selecionado
+    # uma vez. Sem isso, toda abertura voltaria a forçá-lo, e o usuário não
+    # conseguiria escolher outro da lista.
+    "openai_custom_escolhido": False,
     "cli_path": "",            # vazio = detectar automaticamente
     "autotest": True,
     "max_fix_attempts": 3,

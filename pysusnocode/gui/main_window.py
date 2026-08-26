@@ -37,6 +37,7 @@ from ..config import (
     BACKEND_LABELS,
     BACKEND_OPENAI,
     NOTEBOOKS_DIR,
+    OPENAI_MODELS,
     Config,
     assistant_name,
     find_claude_cli,
@@ -314,11 +315,17 @@ class MainWindow(QMainWindow):
         return assistant_name(self.config["backend"])
 
     def _current_model(self) -> str | None:
-        models = models_for(self.config["backend"])
+        """Identificador do modelo escolhido na barra.
+
+        Lê o dado guardado no próprio item, e não a posição numa lista
+        recalculada: com o modelo personalizado a lista tem tamanho variável,
+        e reconstruí-la aqui era mais uma chance de o rótulo exibido e o
+        modelo usado se separarem.
+        """
         index = self.model_combo.currentIndex()
-        if 0 <= index < len(models):
-            return models[index][1]
-        return None
+        if index < 0:
+            return None
+        return self.model_combo.itemData(index)
 
     def _system_prompt(self) -> str:
         return build_system_prompt(self.lessons.for_prompt())
@@ -334,13 +341,31 @@ class MainWindow(QMainWindow):
         )
 
     def _reload_models(self) -> None:
-        """Repovoa a lista de modelos conforme o modo de conexão atual."""
-        models = models_for(self.config["backend"])
+        """Repovoa a lista de modelos conforme o modo de conexão atual.
+
+        Se houver um modelo GPT personalizado nas Configurações, ele entra na
+        lista como última opção. Na primeira vez que isso acontece, deixamos
+        ele já selecionado: quem cadastrou um modelo próprio quer usá-lo, e
+        até a 1.8.8 era isso que acontecia (só que sem aparecer na barra).
+        """
+        custom = (self.config["openai_custom_model"] or "").strip()
+        models = models_for(self.config["backend"], custom)
         self.model_combo.blockSignals(True)
         self.model_combo.clear()
-        for label, _model_id in models:
-            self.model_combo.addItem(label)
+        for label, model_id in models:
+            self.model_combo.addItem(label, model_id)
+
         saved = int(self.config[self._model_key()] or 0)
+        if (
+            custom
+            and self.config["backend"] == BACKEND_OPENAI
+            and not self.config["openai_custom_escolhido"]
+        ):
+            saved = len(models) - 1          # o personalizado é o último
+            self.config[self._model_key()] = saved
+            self.config["openai_custom_escolhido"] = True
+            self.config.save()
+
         self.model_combo.setCurrentIndex(min(max(0, saved), len(models) - 1))
         self.model_combo.blockSignals(False)
 
@@ -617,10 +642,39 @@ class MainWindow(QMainWindow):
         )
 
     def on_settings(self) -> None:
+        modelo_antes = (self.config["openai_custom_model"] or "").strip()
         dialog = SettingsDialog(self.config, self)
         if dialog.exec():
             self.backend = make_backend(self.config)
             self.autotest_check.setChecked(bool(self.config["autotest"]))
+
+            # Se o modelo personalizado mudou (ou foi apagado), a lista da
+            # barra precisa refletir isso na hora — e o modelo novo passa a
+            # ser oferecido como escolha.
+            modelo_agora = (self.config["openai_custom_model"] or "").strip()
+            if modelo_agora != modelo_antes:
+                self.config["openai_custom_escolhido"] = False
+                if not modelo_agora and int(
+                    self.config["openai_model_index"] or 0
+                ) >= len(OPENAI_MODELS):
+                    # o item que estava escolhido era justamente o personalizado
+                    # que acabou de sair da lista: volta para o recomendado.
+                    self.config["openai_model_index"] = 0
+                self.config.save()
+                self._reload_models()
+                if modelo_agora and self.config["backend"] == BACKEND_OPENAI:
+                    self.chat.add_app_note(
+                        f"O modelo personalizado “{modelo_agora}” entrou na lista "
+                        "“Modelo”, na barra acima, e já está selecionado. Você pode "
+                        "voltar aos modelos padrão por ali a qualquer momento."
+                    )
+                elif modelo_agora:
+                    self.chat.add_app_note(
+                        f"O modelo personalizado “{modelo_agora}” foi guardado. Ele "
+                        "aparecerá na lista “Modelo” quando você mudar a “Conexão” "
+                        "da barra acima para a API da OpenAI / GPT."
+                    )
+
             self._update_status()
 
     def on_new_conversation(self) -> None:
