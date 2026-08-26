@@ -145,6 +145,12 @@ class NotebookKernel:
             "    del _pd\n"
             "except Exception:\n"
             "    pass\n"
+            # NÃO chamamos pysus.disable_progress_bars() aqui. A função existe
+            # desde a 2.10 e promete exatamente o que queríamos — tirar as
+            # barras de download, que viram uma parede de lixo na saída —, mas
+            # foi testada na 2.10.3 e não tem efeito nenhum: as barras
+            # continuam saindo em stderr. Chamá-la custaria importar a pysus a
+            # cada início de kernel (mais de um segundo) sem ganho algum.
         )
         try:
             self.execute(preparo, timeout=60)

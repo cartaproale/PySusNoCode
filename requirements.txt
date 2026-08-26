@@ -8,7 +8,12 @@ claude-agent-sdk>=0.2
 jupyter_client>=8
 ipykernel>=6
 nbformat>=5
-pysus>=2.9
+# O piso é 2.10 porque é a versão contra a qual os 28 exemplos do repositório
+# foram validados, e porque ela traz metadados de colunas e o catálogo
+# info(). Sem o piso, duas instalações feitas em meses diferentes teriam
+# APIs distintas — foi o que aconteceu aqui: a máquina de desenvolvimento
+# ficou na 2.9 enquanto instalações novas já vinham com a 2.10.
+pysus>=2.10
 # A pysus 2.10 importa "yaml" logo no carregamento do pacote, mas esqueceu de
 # declarar o PyYAML entre as dependências dela. Sem esta linha, a instalação
 # termina "com sucesso" e o aplicativo quebra no primeiro import com
