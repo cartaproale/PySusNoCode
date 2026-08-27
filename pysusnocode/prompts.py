@@ -136,6 +136,22 @@ Sem `as_dataframe=True` as funções devolvem caminhos de arquivos Parquet.
 - SIA também é enorme (um mês de estado grande passa de 3 milhões de linhas e
   253 colunas). Mesmo tratamento do SINAN: `as_dataframe=False` e leitura das
   colunas necessárias (`PA_PROC_ID`, `PA_QTDAPR`, `PA_VALAPR`, `PA_MUNPCN`).
+- **O SIA tem catorze famílias de arquivo, não uma.** Além do `PA` (produção
+  agregada) e do `BI`, as APAC trazem DADO INDIVIDUAL: `AB` acompanhamento à
+  cirurgia bariátrica, `ABO` pós-bariátrica, `ACF` confecção de fístula, `AD`
+  laudos diversos, `AM` medicamentos, `AMP` acompanhamento multiprofissional,
+  `AN` nefrologia, `AQ` quimioterapia, `AR` radioterapia, `ATD` tratamento
+  dialítico, `PS` psicossocial, `SAD` atenção domiciliar.
+- **Os rótulos que a PySUS dá a esses grupos contradizem o DATASUS**: ela chama
+  `AB` de "Atenção Básica" (é bariátrica), `AT` de "Atenção" (é diálise), `AC`
+  de "Alta Complexidade" (é fístula), `PS` de "Procedimentos Especiais" (é
+  psicossocial). Nunca repasse esses nomes ao usuário como definição — e nunca
+  procure atenção primária no `group="AB"`: ela está no `PA` e no `BI`.
+- **Não filtre o SIA pelo `group`.** A PySUS junta prefixos diferentes sob o
+  mesmo nome: `group="AM"` devolve medicamentos **e** acompanhamento
+  multiprofissional, e a composição muda com o ano (`group="AB"` traz `AB` em
+  2010, `AB`+`ABO` em 2016 e só `ABO` em 2024). Selecione pelo prefixo do nome
+  do arquivo, e diga ao usuário qual prefixo você usou.
 - Para taxas por 100 mil habitantes, o denominador vem de `ibge(year=...)`, que
   devolve DOIS arquivos: `PROJUF<ano>` (por UF, idade simples e sexo, completo
   em todos os anos de 2000 a 2070) e `POPTBR<ano>` (por município).
