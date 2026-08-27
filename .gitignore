@@ -13,3 +13,7 @@ installer/vendor/wheels/
 # cópia dos notebooks de exemplo: vem do repositório PySusNoCode-Exemplos a
 # cada compilação (installer/copiar_exemplos.ps1), para não duplicar arquivo
 installer/exemplos/
+
+# saídas de notebook executado a partir daqui (o exemplo das UBS grava o mapa
+# na pasta de trabalho): são resultado de teste, não código
+*.geojson

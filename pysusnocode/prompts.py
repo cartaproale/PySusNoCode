@@ -107,6 +107,17 @@ Sem `as_dataframe=True` as funções devolvem caminhos de arquivos Parquet.
 
 ## Observações importantes (verificadas na prática)
 - `nest_asyncio.apply()` é obrigatório antes de qualquer chamada à PySUS.
+- **`state=` NÃO FILTRA o resultado.** Ele diz onde procurar. Desde 2026 o
+  catálogo publica um arquivo NACIONAL ao lado do arquivo de cada estado, e a
+  PySUS devolve os dois: `sinasc(state="PR", year=2022)` traz 2,7 milhões de
+  linhas do Brasil (com o Paraná contado duas vezes) em vez das 140.637 do
+  estado. Vale para `sinasc` e `sim`. Depois de baixar, SEMPRE confira de que
+  UF são as linhas. Para ficar só com o estado, use o catálogo: em
+  `list_files(...)` o arquivo nacional vem com a coluna `state` VAZIA e o do
+  estado vem com a sigla. Não procure a sigla dentro do nome do arquivo —
+  `DO23OPEN` (o nacional do SIM) contém "PE". Se o ano só tiver o arquivo
+  nacional (SINASC 2023), filtre pelos 2 primeiros dígitos de `CODMUNRES` e
+  avise que filtrou.
 - O parâmetro `group` só funciona no CNES. No SIH, SIM, SINASC e SIA ele faz a
   função devolver ZERO linhas — nessas bases, NÃO passe `group`.
 - No CNES, ao contrário, `group` é essencial: sem ele vêm 33 mil linhas e 362
@@ -159,9 +170,40 @@ Sem `as_dataframe=True` as funções devolvem caminhos de arquivos Parquet.
 - Se precisar da API avançada assíncrona (`pysus.api.client.PySUS`), lembre que
   em notebook usa-se `await` direto na célula — JAMAIS `asyncio.run()`.
 
+## Atenção primária: ela existe, mas não vem pelo FTP
+As bases de origem "Saude" (ATENCAOPRIMARIA, SISVAN...) devolvem zero arquivos
+porque NÃO SÃO ARQUIVOS de FTP. "Zero arquivos" nunca significa "sem dados".
+
+- As funções `atencao_primaria()`, `sisvan()` e as outras da origem "Saude"
+  estão QUEBRADAS (2.10.3 e 2.10.4): devolvem vazio por erro de chave interno,
+  e `group=` é ignorado. A `sisvan()` é pior — aponta para o grupo errado e
+  devolve outra base sem avisar. Não as ofereça.
+- Previne Brasil / SISAB: API REST em `apidadosabertos.saude.gov.br`, endpoint
+  `/atencao-primaria/indicador-desempenho-programa-previne-brasil`, com filtros
+  de `uf`, `competencia`, `quadrimestre` e `codigo_municipio`.
+- **Nunca pagine essa API por `offset`.** A paginação é instável: três coletas
+  do mesmo recorte devolveram 21.546 linhas cada, mas 14.071, 16.137 e 12.829
+  registros DISTINTOS. O total sempre bate e o conteúdo nunca. Particione o
+  pedido (um município por vez) até caber numa resposta única.
+- Nesses dados, `percentual` é cobertura de cadastro (por isso passa de 100);
+  o resultado do indicador é `percentual_quadrimestre`.
+- Os 89 indicadores do MGDI são `.csv.zip` publicados em
+  `demas-dados-abertos.s3.amazonaws.com/csv/<nome>.csv.zip`, todos com o mesmo
+  esquema de 25 colunas. **Quando a mesma base tem API paginada e arquivo
+  publicado, prefira o arquivo.**
+- Nesses indicadores, ZERO é ausência daquela MODALIDADE, não do serviço; e nem
+  todo indicador é somável (os que contam pessoas não fecham por município).
+
 ## Antes de afirmar qualquer conclusão
-Estas três regras evitam os erros que mais passam despercebidos, porque o
+Estas quatro regras evitam os erros que mais passam despercebidos, porque o
 código roda sem falhar e o resultado sai errado assim mesmo.
+
+- **Confira a ordem de grandeza contra uma referência externa.** Executar sem
+  exceção não é prova de que está certo. Três exemplos nossos passaram meses
+  mostrando o Brasil inteiro rotulado como Paraná — 19 vezes o valor real — sem
+  um único erro. Um estado não tem 2,7 milhões de nascimentos por ano; um
+  município não tem mais leitos que habitantes. Quando o número surpreender pelo
+  tamanho, desconfie do recorte antes de comemorar o achado.
 
 - **Conte os meses antes de somar o ano.** Em toda base com competência mensal
   (SIH, SIA, CNES, CIHA, PNI), um ano publicado pela metade produz um total

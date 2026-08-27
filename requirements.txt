@@ -8,12 +8,15 @@ claude-agent-sdk>=0.2
 jupyter_client>=8
 ipykernel>=6
 nbformat>=5
-# O piso é 2.10 porque é a versão contra a qual os 28 exemplos do repositório
-# foram validados, e porque ela traz metadados de colunas e o catálogo
-# info(). Sem o piso, duas instalações feitas em meses diferentes teriam
-# APIs distintas — foi o que aconteceu aqui: a máquina de desenvolvimento
-# ficou na 2.9 enquanto instalações novas já vinham com a 2.10.
-pysus>=2.10
+# Versão FIXA, não piso. A pysus lançou cinco versões em três dias (2.10.0 a
+# 2.10.4, agosto de 2026), e uma mudança no catálogo entre elas fez três dos
+# nossos exemplos passarem a devolver o Brasil inteiro rotulado como Paraná —
+# sem erro nenhum, só o número errado. Com piso aberto, duas instalações feitas
+# em semanas diferentes se comportam de formas diferentes e o usuário não tem
+# como saber. O número aqui é a versão contra a qual os 31 exemplos do
+# repositório foram validados; para subir, rode antes:
+#     python _ferramentas/vigiar_pysus.py --nova
+pysus==2.10.3
 # A pysus 2.10 importa "yaml" logo no carregamento do pacote, mas esqueceu de
 # declarar o PyYAML entre as dependências dela. Sem esta linha, a instalação
 # termina "com sucesso" e o aplicativo quebra no primeiro import com
