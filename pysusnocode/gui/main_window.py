@@ -494,17 +494,42 @@ class MainWindow(QMainWindow):
         )
 
     def _on_update_failed(self, erro: str, manual: bool) -> None:
+        """Mostra o motivo real da falha, não um palpite sobre a internet.
+
+        Até a 1.8.12 esta janela dizia sempre "verifique sua conexão com a
+        internet". Numa prefeitura isso mandava o usuário caçar um problema
+        inexistente — a internet estava boa, e o bloqueado era o endereço
+        api.github.com, que os filtros tratam separadamente de github.com.
+        """
         self.update_worker = None
         from ..diag import registrar
 
         registrar("verificacao de atualizacao falhou", erro)
-        if manual:
-            QMessageBox.warning(
-                self,
-                "Não consegui verificar",
-                "Não foi possível consultar as atualizações agora. Verifique sua "
-                "conexão com a internet e tente novamente mais tarde.",
+        if not manual:
+            return
+
+        texto = (erro or "").strip()
+        if not texto:
+            texto = (
+                "Não foi possível consultar as atualizações agora. Tente de "
+                "novo mais tarde."
             )
+
+        caixa = QMessageBox(self)
+        caixa.setIcon(QMessageBox.Warning)
+        caixa.setWindowTitle("Não consegui verificar")
+        caixa.setText(texto)
+        abrir = caixa.addButton(
+            "Abrir a página de download", QMessageBox.AcceptRole
+        )
+        caixa.addButton("Fechar", QMessageBox.RejectRole)
+        caixa.exec()
+        if caixa.clickedButton() is abrir:
+            import webbrowser
+
+            from ..updates import PAGINA_RELEASE
+
+            webbrowser.open(PAGINA_RELEASE)
 
     def on_check_updates_clicked(self) -> None:
         """Verificação manual, pedida nas Configurações."""

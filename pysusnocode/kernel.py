@@ -60,6 +60,13 @@ ENDERECOS_NECESSARIOS = (
     ("apidadosabertos.saude.gov.br", "atenção primária e SISAB (HTTPS)"),
     ("dadosabertos.saude.gov.br", "portal de dados abertos do Ministério (HTTPS)"),
     ("pypi.org e files.pythonhosted.org", "só durante a instalação do programa"),
+    # Não são para os dados, e sim para o próprio programa. Entram aqui porque
+    # api.github.com é liberado separadamente de github.com: é comum a página
+    # abrir no navegador e a verificação de versão falhar mesmo assim.
+    (
+        "github.com, api.github.com e raw.githubusercontent.com",
+        "aviso de nova versão e galeria de exemplos (HTTPS)",
+    ),
 )
 
 TEXTO_PARA_TI = (
@@ -80,7 +87,12 @@ TEXTO_PARA_TI = (
     "206 Partial Content com Content-Range — o catálogo é lido em pedaços. "
     "Sem isso, uma consulta simples passa a baixar arquivos de até 128 MB.\n\n"
     "Também são necessários: ftp.datasus.gov.br (FTP, porta 21), "
-    "apidadosabertos.saude.gov.br e dadosabertos.saude.gov.br (HTTPS).\n"
+    "apidadosabertos.saude.gov.br e dadosabertos.saude.gov.br (HTTPS).\n\n"
+    "Por fim, para o próprio programa avisar de novas versões e baixar os "
+    "exemplos: github.com, api.github.com e raw.githubusercontent.com (HTTPS). "
+    "Vale conferir os três: api.github.com costuma ser tratado como domínio "
+    "distinto de github.com e ficar bloqueado mesmo quando o site abre "
+    "normalmente no navegador.\n"
     "— — — fim do texto — — —"
 )
 
