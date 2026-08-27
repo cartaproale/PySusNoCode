@@ -405,27 +405,44 @@
     <p class="slogan">Crie análises de dados públicos de saúde do DATASUS conversando em português com uma IA — <strong>sem programar</strong>.</p>
 
     <!-- ================================================================
-         Link permanente do GitHub Releases (github.com/cartaproale/PySusNoCode):
-         aponta SEMPRE para a versão mais recente publicada — não precisa
-         editar a cada nova versão. Se preferir hospedar o .exe no próprio
-         site, basta trocar o href abaixo.
+         Os botões apontam para a PÁGINA de versões do GitHub, não para o
+         arquivo .exe direto. Isso é de propósito.
+
+         Quando esta página é embutida num construtor de site (WordPress com
+         AIRO, por exemplo), o conteúdo vai para dentro de um iframe. Um link
+         direto para o .exe abre uma aba vazia só para receber o download e a
+         deixa para trás (a "tela preta"); e um link para páginas do GitHub
+         dentro do iframe é recusado pelo próprio GitHub, que responde
+         X-Frame-Options: deny.
+
+         Levar o visitante à página de versões, em aba nova, funciona nos dois
+         casos. Custa um clique a mais — por isso o texto abaixo diz
+         exatamente qual arquivo escolher lá.
+
+         A página de versões aponta sempre para a mais recente: não é preciso
+         editar nada a cada lançamento.
          ================================================================ -->
-    <a class="btn-download" id="link-download" href="https://github.com/cartaproale/PySusNoCode/releases/latest/download/PySusNoCode-Setup.exe" download>
+    <a class="btn-download" id="link-download"
+       href="https://github.com/cartaproale/PySusNoCode/releases/latest"
+       target="_blank" rel="noopener">
       ⬇ Baixar o PySusNoCode
-      <small>Sempre a versão mais recente · ~14 MB · Windows 10/11 (64 bits)</small>
+      <small>Abre a página de versões · escolha <strong>PySusNoCode-Setup.exe</strong> · ~16 MB · Windows 10/11 (64 bits)</small>
     </a>
 
     <!-- ================================================================
          Versão completa: para redes que bloqueiam o repositório de pacotes
          do Python (pypi.org). É o caso da maioria das prefeituras, hospitais
-         e unidades de saúde. Link permanente, igual ao de cima.
+         e unidades de saúde. Mesma página, outro arquivo.
          ================================================================ -->
     <p class="rede-restrita">
       🏥 <strong>Vai instalar no computador de uma unidade de saúde, hospital ou prefeitura?</strong><br>
       Essas redes costumam bloquear o download das bibliotecas, e a instalação
-      acima falha na metade. Baixe a versão completa, que já traz tudo dentro:<br>
-      <a href="https://github.com/cartaproale/PySusNoCode/releases/latest/download/PySusNoCode-Setup-Completo.exe" download>
-        ⬇ Baixar a versão completa · ~350 MB · dispensa internet na instalação
+      acima falha na metade. Use a versão completa, que já traz tudo dentro —
+      na mesma página de versões, escolha o arquivo
+      <strong>PySusNoCode-Setup-Completo.exe</strong>:<br>
+      <a href="https://github.com/cartaproale/PySusNoCode/releases/latest"
+         target="_blank" rel="noopener">
+        ⬇ Abrir a página de versões · ~325 MB · dispensa internet na instalação
       </a>
     </p>
 
@@ -512,16 +529,28 @@
       <div class="passo">
         <h3>Baixe o instalador (o navegador vai avisar)</h3>
         <p>Clique no botão <strong>“⬇ Baixar o PySusNoCode”</strong> no topo desta página.
-        O arquivo se chama <strong>PySusNoCode-Setup.exe</strong> e tem cerca de 14 MB.
-        Como poucas pessoas baixaram esse programa ainda, o navegador costuma avisar:</p>
+        Abre-se, numa aba nova, a <strong>página de versões</strong> do projeto no GitHub.
+        Role até a lista de arquivos, no fim da página, e clique em
+        <strong>PySusNoCode-Setup.exe</strong> (cerca de 16 MB).</p>
+
+        <p>Você verá quatro arquivos na lista. Os dois que interessam são:</p>
+        <ul style="max-width:100%;margin:0 0 14px 22px;color:var(--tinta-suave);font-size:0.95rem;">
+          <li><strong>PySusNoCode-Setup.exe</strong> — o instalador comum, para casa e consultório.</li>
+          <li><strong>PySusNoCode-Setup-Completo.exe</strong> — para redes controladas (veja o quadro abaixo).</li>
+        </ul>
+        <p>Os outros dois têm o número da versão no nome e são cópias idênticas
+        desses mesmos arquivos. Como poucas pessoas baixaram este programa ainda,
+        o navegador costuma avisar:</p>
 
         <div class="aviso" style="margin:16px 0;">
           <strong>Computador de trabalho, em unidade de saúde ou prefeitura?</strong><br>
           Essas redes costumam bloquear o endereço de onde o programa baixa as
           bibliotecas do Python. A instalação vai até a metade e para, com uma
-          mensagem sobre <em>pypi.org</em>. Nesse caso baixe a
-          <a href="https://github.com/cartaproale/PySusNoCode/releases/latest/download/PySusNoCode-Setup-Completo.exe" download><strong>versão completa</strong></a>
-          (cerca de 350 MB): ela já traz todas as bibliotecas dentro e não
+          mensagem sobre <em>pypi.org</em>. Nesse caso, na
+          <a href="https://github.com/cartaproale/PySusNoCode/releases/latest"
+             target="_blank" rel="noopener"><strong>página de versões</strong></a>
+          escolha o arquivo <strong>PySusNoCode-Setup-Completo.exe</strong>
+          (cerca de 325 MB): ele já traz todas as bibliotecas dentro e não
           precisa acessar a internet para instalar. Os passos a seguir são
           exatamente os mesmos.
         </div>
