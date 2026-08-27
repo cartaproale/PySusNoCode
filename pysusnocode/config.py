@@ -117,38 +117,50 @@ class Config:
         self.data[key] = value
 
 
-def find_claude_cli(override: str = "") -> str | None:
-    """Localiza o executável do Claude Code.
+def listar_claude_clis(override: str = "") -> list[str]:
+    """Todos os executáveis do Claude Code presentes, em ordem de preferência.
 
     A biblioteca claude-agent-sdk já traz um claude.exe embutido, e é ele que
     o SDK usa para conversar. Procuramos esse primeiro para que o botão de
     login use exatamente o mesmo programa — assim não é preciso instalar o
     Claude Code separadamente.
+
+    Devolve a lista inteira, e não só o primeiro, porque é comum a máquina ter
+    dois: o embutido e o que o próprio usuário instalou em ~/.local/bin. Se a
+    criação do processo falhar com um deles, quem chama pode tentar o outro em
+    vez de declarar que o Claude Code não existe.
     """
     import importlib.util
     import shutil
 
+    achados: list[str] = []
+
+    def acrescentar(caminho) -> None:
+        if not caminho:
+            return
+        texto = str(caminho)
+        if texto not in achados and Path(texto).exists():
+            achados.append(texto)
+
     if override:
-        p = Path(override)
-        if p.exists():
-            return str(p)
+        acrescentar(override)
 
     try:
         spec = importlib.util.find_spec("claude_agent_sdk")
         if spec is not None and spec.origin:
-            embutido = Path(spec.origin).parent / "_bundled" / "claude.exe"
-            if embutido.exists():
-                return str(embutido)
+            acrescentar(Path(spec.origin).parent / "_bundled" / "claude.exe")
     except Exception:  # noqa: BLE001
         pass
 
-    candidates = [
-        Path.home() / ".local" / "bin" / "claude.exe",
-    ]
-    for c in candidates:
-        if c.exists():
-            return str(c)
+    acrescentar(Path.home() / ".local" / "bin" / "claude.exe")
+
     hit = shutil.which("claude.exe") or shutil.which("claude")
     if hit and hit.lower().endswith((".exe", ".com")):
-        return hit
-    return None
+        acrescentar(hit)
+    return achados
+
+
+def find_claude_cli(override: str = "") -> str | None:
+    """O executável preferido do Claude Code, ou None se não houver nenhum."""
+    achados = listar_claude_clis(override)
+    return achados[0] if achados else None

@@ -17,7 +17,14 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 
-from .config import BACKEND_AGENT, BACKEND_API, BACKEND_OPENAI, Config, find_claude_cli
+from .config import (
+    BACKEND_AGENT,
+    BACKEND_API,
+    BACKEND_OPENAI,
+    Config,
+    find_claude_cli,
+    listar_claude_clis,
+)
 
 OnChunk = Callable[[str], None]
 
@@ -60,6 +67,9 @@ class AgentSDKBackend:
     def __init__(self, config: Config) -> None:
         self.config = config
         self.session_id: str | None = None
+        # Qual executável usar. Fica gravado depois que um deles funciona, para
+        # não repetir a tentativa que falhou a cada mensagem.
+        self._cli_escolhido: str | None = None
 
     def reset(self) -> None:
         self.session_id = None
@@ -76,8 +86,10 @@ class AgentSDKBackend:
 
         _patch_subprocess_no_window()
         try:
-            return asyncio.run(
-                self._send_async(user_text, system_prompt, model, on_chunk, cancel)
+            return self._tentar_cada_cli(
+                lambda: asyncio.run(
+                    self._send_async(user_text, system_prompt, model, on_chunk, cancel)
+                )
             )
         except LLMError as exc:
             # Sessão restaurada de um notebook antigo pode não existir mais no
@@ -99,6 +111,42 @@ class AgentSDKBackend:
         except Exception as exc:  # noqa: BLE001
             raise LLMError(self._friendly(exc)) from exc
 
+    def _tentar_cada_cli(self, executar):
+        """Roda `executar`, trocando de claude.exe se o processo não iniciar.
+
+        É comum a máquina ter dois: o embutido no SDK e o que o usuário
+        instalou. Antes, o aplicativo tentava só o primeiro e, se a criação do
+        processo falhasse, anunciava que o Claude Code não estava instalado —
+        mesmo com um segundo executável perfeitamente utilizável ao lado.
+        """
+        try:
+            from claude_agent_sdk import CLINotFoundError
+        except Exception:  # noqa: BLE001
+            return executar()
+
+        candidatos: list[str | None] = list(
+            listar_claude_clis(self.config["cli_path"])
+        )
+        if self._cli_escolhido in candidatos:
+            candidatos.remove(self._cli_escolhido)
+            candidatos.insert(0, self._cli_escolhido)
+        if not candidatos:
+            # Nenhum encontrado: deixa o próprio SDK procurar e explicar.
+            candidatos = [None]
+
+        falha: Exception | None = None
+        for caminho in candidatos:
+            self._cli_escolhido = caminho
+            try:
+                return executar()
+            except CLINotFoundError as erro:
+                from .diag import registrar
+
+                registrar("claude code nao iniciou", f"{caminho} | {erro}")
+                falha = erro
+        self._cli_escolhido = None
+        raise falha  # type: ignore[misc]
+
     async def _send_async(
         self,
         user_text: str,
@@ -115,7 +163,7 @@ class AgentSDKBackend:
             query,
         )
 
-        cli = find_claude_cli(self.config["cli_path"])
+        cli = self._cli_escolhido or find_claude_cli(self.config["cli_path"])
         options = ClaudeAgentOptions(
             model=model,
             system_prompt=system_prompt,
@@ -184,6 +232,47 @@ class AgentSDKBackend:
         return "O Claude Code retornou um erro: " + result
 
     @staticmethod
+    def _explicar_cli(exc: Exception) -> str:
+        """Diz o que realmente houve com o executável do Claude Code.
+
+        O SDK levanta CLINotFoundError sempre que a criação do processo termina
+        em FileNotFoundError — e no Windows isso tem mais causas do que "o
+        arquivo não existe". Até a 1.8.13 o aplicativo afirmava que o Claude
+        Code não estava instalado, mesmo quando o executável estava lá e
+        íntegro; o usuário ia instalar de novo o que já tinha.
+        """
+        achados = listar_claude_clis()
+        if not achados:
+            return (
+                "Não encontrei o Claude Code neste computador. Use o botão "
+                "“Instalar Claude Code” nas Configurações, ou rode no "
+                "PowerShell:\n"
+                "irm https://claude.ai/install.ps1 | iex"
+            )
+
+        lista = "\n".join(f"• {c}" for c in achados)
+        if len(achados) > 1:
+            abertura = (
+                "O Claude Code está instalado, mas o Windows não conseguiu "
+                f"iniciá-lo. Tentei os {len(achados)} executáveis que encontrei "
+                "e nenhum respondeu:"
+            )
+        else:
+            abertura = (
+                "O Claude Code está instalado, mas o Windows não conseguiu "
+                "iniciá-lo. O executável que encontrei foi:"
+            )
+        return (
+            f"{abertura}\n{lista}\n\n"
+            f"Detalhe técnico: {exc}\n\n"
+            "O que costuma resolver: feche e abra o PySusNoCode; se persistir, "
+            "reinicie o computador — um antivírus ou uma atualização em "
+            "andamento podem estar segurando o arquivo. Enquanto isso, você "
+            "pode continuar trabalhando pela conexão com chave de API, nas "
+            "Configurações."
+        )
+
+    @staticmethod
     def _friendly(exc: Exception) -> str:
         try:
             from claude_agent_sdk import CLIConnectionError, CLINotFoundError, ProcessError
@@ -191,11 +280,7 @@ class AgentSDKBackend:
             return f"Erro ao falar com o Claude: {exc}"
 
         if isinstance(exc, CLINotFoundError):
-            return (
-                "O Claude Code não está instalado neste computador. Use o botão "
-                "“Instalar Claude Code” nas Configurações, ou rode no PowerShell:\n"
-                "irm https://claude.ai/install.ps1 | iex"
-            )
+            return AgentSDKBackend._explicar_cli(exc)
         if isinstance(exc, ProcessError):
             detail = f"{exc} {getattr(exc, 'stderr', '') or ''}"[-800:]
             low = detail.lower()

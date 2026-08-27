@@ -26,6 +26,22 @@ from ..theme import LIGHT
 
 _FENCE_RE = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.DOTALL)
 
+# Marcadores do protocolo, reconhecidos ENQUANTO a resposta ainda chega. O
+# protocol.py só consegue interpretar a resposta inteira; aqui é preciso lidar
+# com blocos abertos, que ainda não têm o ###FIM###.
+_ABRE_BLOCO_RE = re.compile(
+    r"###\s*(?:CELULA\s*:\s*(codigo|texto)|(LICAO))\s*###\s*\n?", re.IGNORECASE
+)
+_FECHA_BLOCO_RE = re.compile(r"###\s*FIM\s*###", re.IGNORECASE)
+# Marcador cortado no meio pelo streaming ("###CELU"): não deve piscar na tela.
+_MARCA_PELA_METADE_RE = re.compile(r"\n?#{1,3}[A-Za-z:]*\s*$")
+
+_ROTULO_BLOCO = {
+    "codigo": "código",
+    "texto": "texto",
+    "licao": "lição aprendida",
+}
+
 
 class _PromptInput(QPlainTextEdit):
     """Campo de texto que envia com Enter (Shift+Enter quebra linha)."""
@@ -53,6 +69,10 @@ class ChatPanel(QWidget):
         self.entries: list[tuple[str, str]] = []   # (papel, html)
         self._streaming = False
         self._stream_buffer = ""
+        # Blocos de código abertos pelo usuário durante a resposta. Fechados por
+        # padrão: quem não programa não precisa ver o código sendo digitado, e
+        # quem quer ver clica.
+        self._blocos_abertos: set[int] = set()
         self._render_timer = QTimer(self)
         self._render_timer.setInterval(150)
         self._render_timer.setSingleShot(True)
@@ -65,7 +85,11 @@ class ChatPanel(QWidget):
         layout.addWidget(self.title_label)
 
         self.view = QTextBrowser()
-        self.view.setOpenExternalLinks(True)
+        # Os links são tratados aqui porque além dos externos há os internos,
+        # que abrem e fecham os blocos de código durante a resposta.
+        self.view.setOpenLinks(False)
+        self.view.setOpenExternalLinks(False)
+        self.view.anchorClicked.connect(self._on_anchor_clicked)
         layout.addWidget(self.view, stretch=1)
 
         self.status_label = QLabel("")
@@ -186,10 +210,103 @@ class ChatPanel(QWidget):
     def add_error(self, text: str) -> None:
         self.add_html("error", html.escape(text).replace("\n", "<br>"))
 
+    # --- links ---------------------------------------------------------
+    def _on_anchor_clicked(self, url) -> None:
+        destino = url.toString()
+        if destino.startswith("pysus-bloco:"):
+            try:
+                indice = int(destino.split(":", 1)[1])
+            except ValueError:
+                return
+            if indice in self._blocos_abertos:
+                self._blocos_abertos.discard(indice)
+            else:
+                self._blocos_abertos.add(indice)
+            self._render()
+            return
+        if destino.startswith(("http://", "https://")):
+            import webbrowser
+
+            webbrowser.open(destino)
+
     # --- streaming -----------------------------------------------------
+    def _dividir_ao_vivo(self, buffer: str) -> list[tuple[str, str, bool]]:
+        """Separa a resposta parcial em (tipo, conteúdo, terminado).
+
+        Tipo é "conversa" ou o nome do bloco. Um bloco ainda sem ###FIM###
+        volta com terminado=False — é o caso normal enquanto a IA escreve.
+        """
+        partes: list[tuple[str, str, bool]] = []
+        pos = 0
+        while True:
+            abre = _ABRE_BLOCO_RE.search(buffer, pos)
+            if not abre:
+                partes.append(("conversa", buffer[pos:], True))
+                return partes
+            if abre.start() > pos:
+                partes.append(("conversa", buffer[pos:abre.start()], True))
+            tipo = (abre.group(1) or "licao").lower()
+            fecha = _FECHA_BLOCO_RE.search(buffer, abre.end())
+            if fecha:
+                partes.append((tipo, buffer[abre.end():fecha.start()], True))
+                pos = fecha.end()
+            else:
+                partes.append((tipo, buffer[abre.end():], False))
+                return partes
+
+    def _html_ao_vivo(self, buffer: str) -> str:
+        """Conversa legível + código recolhido, enquanto a resposta chega.
+
+        Antes, o buffer inteiro era despejado na tela: quem não programa via os
+        marcadores do protocolo e o código sendo digitado linha a linha, sem
+        utilidade nenhuma. Agora só a explicação fica visível; cada bloco vira
+        uma barra que se abre com um clique.
+        """
+        t = self.t
+        partes = self._dividir_ao_vivo(buffer)
+        pedacos: list[str] = []
+        indice = 0
+        for numero, (tipo, conteudo, terminado) in enumerate(partes):
+            if tipo == "conversa":
+                texto = conteudo
+                if numero == len(partes) - 1:
+                    texto = _MARCA_PELA_METADE_RE.sub("", texto)
+                if texto.strip():
+                    pedacos.append(html.escape(texto).replace("\n", "<br>"))
+                continue
+
+            rotulo = _ROTULO_BLOCO.get(tipo, tipo)
+            # Sem o strip, a quebra de linha que antecede o ###FIM### seria
+            # contada como uma linha a mais do que o usuário vê.
+            corpo = conteudo.strip("\n")
+            linhas = corpo.count("\n") + 1 if corpo.strip() else 0
+            aberto = indice in self._blocos_abertos
+            if terminado:
+                resumo = f"{rotulo} — {linhas} linha{'s' if linhas != 1 else ''}"
+            else:
+                resumo = f"{rotulo} — sendo escrito…"
+            seta = "▾" if aberto else "▸"
+            acao = "ocultar" if aberto else "ver"
+            pedacos.append(
+                f"<div style='background:{t['code_bg']};border:1px solid "
+                f"{t['border']};border-radius:4px;padding:4px 8px;margin:6px 0;'>"
+                f"<a href='pysus-bloco:{indice}' style='color:{t['muted']};"
+                f"text-decoration:none;'>{seta} {resumo} "
+                f"<i>(clique para {acao})</i></a>"
+            )
+            if aberto and corpo.strip():
+                pedacos.append(
+                    f"<pre style='color:{t['code_fg']};margin:6px 0 0 0;"
+                    f"white-space:pre-wrap;'>{html.escape(corpo)}</pre>"
+                )
+            pedacos.append("</div>")
+            indice += 1
+        return "".join(pedacos)
+
     def begin_stream(self) -> None:
         self._streaming = True
         self._stream_buffer = ""
+        self._blocos_abertos = set()
         self._render()
 
     def stream_chunk(self, text: str) -> None:
@@ -238,7 +355,7 @@ class ChatPanel(QWidget):
             )
         if self._streaming:
             name, bg, fg = self._bubble_style("assistant")
-            live = html.escape(self._stream_buffer).replace("\n", "<br>")
+            live = self._html_ao_vivo(self._stream_buffer)
             parts.append(
                 f"<div style='background:{bg};color:{fg};margin:6px 2px;padding:8px;"
                 f"border-radius:6px;'><span style='font-weight:bold;'>"

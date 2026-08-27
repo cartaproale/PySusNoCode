@@ -178,7 +178,6 @@ class CellWidget(QFrame):
 
         self.output_view = QTextBrowser()
         self.output_view.setVisible(False)
-        self.output_view.setMaximumHeight(280)
         self.output_view.setToolTip(
             "Clique duas vezes (ou use 🔍 Ampliar) para ver a saída completa"
         )
@@ -250,10 +249,45 @@ class CellWidget(QFrame):
         self._adjust_editor_height()
         self.edited.emit(self)
 
+    # Quantas linhas o editor de código pode ocupar antes de rolar. A saída usa
+    # o mesmo teto: é o resultado que responde à pergunta do usuário, e não faz
+    # sentido ele viver numa fresta enquanto o código ocupa a tela inteira.
+    MAX_LINHAS = 22
+
     def _adjust_editor_height(self) -> None:
-        lines = max(2, min(22, self.editor.document().blockCount()))
+        lines = max(2, min(self.MAX_LINHAS, self.editor.document().blockCount()))
         metrics = QFontMetrics(self.editor.font())
         self.editor.setFixedHeight(int(lines * metrics.lineSpacing()) + 14)
+
+    def _ajustar_altura_saida(self) -> None:
+        """Dá à saída o mesmo espaço que o código tem.
+
+        Antes a saída era presa em 280 pixels fixos, o que mostrava umas quatro
+        linhas: numa célula com vinte linhas de código, o resultado da análise
+        aparecia espremido numa fresta com barra de rolagem. Agora ela cresce
+        com o conteúdo, até o mesmo teto do editor.
+        """
+        # Note que a pergunta é se HÁ saída, não se ela já está na tela:
+        # isVisible() é falso enquanto a célula ainda não foi exibida, e usar
+        # isso como condição deixava a caixa presa na altura mínima justamente
+        # nas células recém-criadas — que são todas, quando o notebook abre.
+        if not (self.cell.outputs and self.cell.kind == "code"):
+            return
+        documento = self.output_view.document()
+        largura = self.output_view.viewport().width()
+        if largura > 0:
+            documento.setTextWidth(largura)
+        metrics = QFontMetrics(self.editor.font())
+        teto = int(self.MAX_LINHAS * metrics.lineSpacing()) + 14
+        piso = int(3 * metrics.lineSpacing()) + 14
+        altura = documento.size().height() + 12
+        self.output_view.setFixedHeight(int(max(piso, min(teto, altura))))
+
+    def resizeEvent(self, event):  # noqa: N802
+        # A altura da saída depende da largura disponível: uma linha longa que
+        # cabia numa só passa a ocupar duas quando a janela encolhe.
+        super().resizeEvent(event)
+        self._ajustar_altura_saida()
 
     def _copy(self) -> None:
         QApplication.clipboard().setText(self.cell.source)
@@ -297,3 +331,4 @@ class CellWidget(QFrame):
         )
         self.output_view.setHtml(html_out)
         self.output_view.setVisible(True)
+        self._ajustar_altura_saida()
