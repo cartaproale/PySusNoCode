@@ -49,11 +49,49 @@ MENSAGEM_KERNEL_MORTO = (
 # nesses casos só gasta as tentativas: o código está certo, o problema está
 # fora dele. Cada entrada exige que TODAS as marcas de "sempre" apareçam e ao
 # menos uma das de "alguma", para não confundir com erro de verdade.
+# Endereços que a PySUS precisa alcançar. Levantados no código da própria
+# biblioteca (pysus.api.types.S3_ENDPOINT e api/ftp/client.py), não supostos:
+# antes de baixar qualquer arquivo do DATASUS, ela consulta um catálogo
+# hospedado num armazenamento externo — e é justamente esse que as redes
+# institucionais costumam bloquear, por cair na categoria "cloud storage".
+ENDERECOS_NECESSARIOS = (
+    ("*.your-objectstorage.com", "catálogo de arquivos da PySUS (HTTPS)"),
+    ("ftp.datasus.gov.br", "arquivos do DATASUS (FTP, porta 21)"),
+    ("apidadosabertos.saude.gov.br", "atenção primária e SISAB (HTTPS)"),
+    ("dadosabertos.saude.gov.br", "portal de dados abertos do Ministério (HTTPS)"),
+    ("pypi.org e files.pythonhosted.org", "só durante a instalação do programa"),
+)
+
+TEXTO_PARA_TI = (
+    "— — — texto para abrir o chamado na TI — — —\n\n"
+    "Solicito a liberação, no firewall, proxy e filtro de conteúdo, do domínio "
+    "*.your-objectstorage.com por HTTPS (porta 443).\n\n"
+    "A biblioteca pública PySUS, usada para acessar dados do DATASUS, consulta "
+    "seu catálogo de arquivos em "
+    "https://nbg1.your-objectstorage.com/pysus/public/ antes de qualquer "
+    "download. A conexão TCP na porta 443 chega a ser estabelecida, mas a "
+    "negociação TLS não se completa quando o acesso passa pela rede da "
+    "instituição; pelo 4G o mesmo endereço funciona.\n\n"
+    "Três observações que costumam ser necessárias:\n\n"
+    "1. A regra deve ser por nome de domínio (FQDN), não por IP: é uma "
+    "infraestrutura em nuvem e os endereços mudam.\n"
+    "2. Verificar se a inspeção de TLS está interferindo na conexão.\n"
+    "3. O proxy precisa preservar requisições HTTP Range e permitir respostas "
+    "206 Partial Content com Content-Range — o catálogo é lido em pedaços. "
+    "Sem isso, uma consulta simples passa a baixar arquivos de até 128 MB.\n\n"
+    "Também são necessários: ftp.datasus.gov.br (FTP, porta 21), "
+    "apidadosabertos.saude.gov.br e dadosabertos.saude.gov.br (HTTPS).\n"
+    "— — — fim do texto — — —"
+)
+
 ERROS_DE_AMBIENTE = (
     {
         "sempre": ("duckdb",),
         "alguma": (
             "já está sendo usado por outro processo",
+            # a mesma frase sem acentos: dependendo da página de código do
+            # console, o Windows devolve o texto assim
+            "ja esta sendo usado por outro processo",
             "being used by another process",
             "could not set lock on file",
             "file is already open",
@@ -66,6 +104,61 @@ ERROS_DE_AMBIENTE = (
             "notebook rodando fora daqui.\n\n"
             "Feche a outra janela e execute esta célula de novo. Não é preciso "
             "mudar o código: ele está correto."
+        ),
+    },
+    # Inspeção de TLS vem ANTES do tempo esgotado: quando o equipamento da rede
+    # troca o certificado, o sintoma é de certificado e não de demora, e a
+    # orientação para a TI é outra.
+    {
+        "sempre": ("pysus",),
+        "alguma": (
+            "certificate_verify_failed",
+            "sslcertverificationerror",
+            "unable to get local issuer certificate",
+            "self-signed certificate",
+            "self signed certificate",
+            "ssl: certificate",
+        ),
+        "explicacao": (
+            "A rede está inspecionando o tráfego seguro e o Python recusou o "
+            "certificado.\n\n"
+            "Não é erro do código nem do seu computador. Em redes de "
+            "prefeituras, hospitais e empresas é comum um equipamento abrir o "
+            "tráfego HTTPS e reemitir os certificados. Navegadores aceitam "
+            "isso porque confiam no certificado da instituição; o Python, que "
+            "tem a própria lista de certificados, não aceita.\n\n"
+            f"{TEXTO_PARA_TI}"
+        ),
+    },
+    {
+        "sempre": ("pysus",),
+        "alguma": (
+            "connecttimeout",
+            "connecterror",
+            "readtimeout",
+            "connect timeout",
+            "timed out",
+            "max retries exceeded",
+            "failed to establish a new connection",
+        ),
+        "explicacao": (
+            "A rede bloqueou o endereço de onde a PySUS busca o catálogo.\n\n"
+            "A mensagem fala em tempo esgotado, o que faz parecer internet "
+            "lenta — mas quase sempre não é. Em redes controladas o "
+            "equipamento simplesmente não responde ao endereço bloqueado, e a "
+            "espera acaba em tempo esgotado.\n\n"
+            "Repare que liberar só os endereços do DATASUS não basta: antes de "
+            "baixar qualquer arquivo, a PySUS consulta um catálogo hospedado "
+            "em outro serviço.\n\n"
+            "Duas saídas:\n\n"
+            "1. Peça a liberação à TI, com o texto pronto abaixo.\n\n"
+            "2. Enquanto isso, use uma rede fora do controle da instituição — "
+            "o 4G do seu celular, por exemplo. Atenção: não basta conectar no "
+            "Wi-Fi do celular. Com o cabo de rede ligado, o Windows continua "
+            "mandando tudo pelo cabo. É preciso desconectar o cabo (ou "
+            "desativar o adaptador Ethernet nas configurações do Windows) para "
+            "que o tráfego passe pelo celular.\n\n"
+            f"{TEXTO_PARA_TI}"
         ),
     },
 )

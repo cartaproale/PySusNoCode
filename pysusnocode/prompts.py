@@ -210,6 +210,24 @@ porque NÃO SÃO ARQUIVOS de FTP. "Zero arquivos" nunca significa "sem dados".
 - Nesses indicadores, ZERO é ausência daquela MODALIDADE, não do serviço; e nem
   todo indicador é somável (os que contam pessoas não fecham por município).
 
+## Quando o erro for de rede, não tente consertar o código
+A PySUS **não baixa direto do DATASUS**: antes de qualquer arquivo ela consulta
+um catálogo em `nbg1.your-objectstorage.com`. Redes de prefeituras, hospitais e
+empresas costumam bloquear esse endereço, porque ele cai na categoria "cloud
+storage" dos filtros de conteúdo.
+
+- O sintoma é `ConnectTimeout` — parece internet lenta, e não é: o equipamento
+  simplesmente não responde ao destino bloqueado.
+- Se aparecer erro de certificado, é a inspeção de TLS da instituição.
+- Nos dois casos o código está correto. **Não reescreva a célula**: explique o
+  que está acontecendo e o que pedir à TI (liberar `*.your-objectstorage.com`
+  por HTTPS, por nome de domínio e não por IP; preservar HTTP Range e respostas
+  206, senão uma consulta simples passa a baixar até 128 MB).
+- Se o usuário for contornar pelo 4G do celular, avise que **conectar no Wi-Fi
+  não basta**: com o cabo de rede ligado o Windows continua roteando pela
+  Ethernet. É preciso desconectar o cabo. Nunca sugira alterar métricas, rotas
+  ou adaptadores em computador institucional.
+
 ## Antes de afirmar qualquer conclusão
 Estas quatro regras evitam os erros que mais passam despercebidos, porque o
 código roda sem falhar e o resultado sai errado assim mesmo.

@@ -657,7 +657,9 @@ minutos na primeira vez; precisa de conexao com a internet)
         A causa mais comum em redes de empresas e hospitais é o bloqueio ao site
         <strong>pypi.org</strong>, de onde vêm as bibliotecas: peça ao setor de TI para liberar
         <strong>pypi.org</strong> e <strong>files.pythonhosted.org</strong>, ou instale usando
-        outra rede (o celular como roteador, por exemplo).</p>
+        outra rede (o celular como roteador, por exemplo). Veja também a seção
+        <a href="#rede">Endereços que a rede precisa liberar</a>, logo abaixo — a instalação é
+        só metade do caminho.</p>
         <p class="oque-fazer">👉 Se o Windows perguntar sobre o <strong>Firewall</strong>
         (“Firewall do Windows bloqueou alguns recursos deste aplicativo”), você pode clicar em
         <strong>Cancelar</strong> sem problema: o aplicativo só usa a rede para baixar dados
@@ -873,6 +875,99 @@ minutos na primeira vez; precisa de conexao com a internet)
                 allowfullscreen></iframe>
       </div>
       <a class="btn-video" href="https://youtu.be/MWqOzsnJxtY" target="_blank" rel="noopener">▶ Assistir no YouTube</a>
+    </div>
+  </div>
+</section>
+
+<section style="background: var(--branco); border-top: 1px solid var(--borda);">
+  <div class="container">
+    <h2 id="rede">Endereços que a rede precisa liberar</h2>
+    <p style="text-align:center; max-width:760px; margin:-10px auto 22px; color:var(--tinta-suave);">
+      Em casa isso não é problema. Mas em <strong>prefeituras, hospitais e unidades de
+      saúde</strong> a rede costuma bloquear parte destes endereços — e o erro que aparece
+      engana, porque fala em <em>tempo esgotado</em>, como se fosse internet lenta.
+      Esta seção existe para você entregar ao setor de TI.
+    </p>
+
+    <div class="aviso" style="max-width:780px;">
+      <strong>O ponto que quase sempre passa despercebido:</strong> a biblioteca PySUS
+      <strong>não baixa direto do DATASUS</strong>. Antes de qualquer arquivo, ela consulta um
+      catálogo hospedado num armazenamento externo. Liberar apenas os endereços do DATASUS
+      <strong>não faz o programa funcionar</strong> — e esse é o endereço que os filtros de
+      conteúdo mais bloqueiam, por cair na categoria “cloud storage”.
+    </div>
+
+    <div class="tabela-wrap" style="margin-top:22px;">
+      <table class="comparativo">
+        <thead>
+          <tr><th>Endereço</th><th>Para quê</th><th>Quando</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>*.your-objectstorage.com</strong><br><span class="tag-reco">o mais bloqueado</span></td>
+            <td>Catálogo de arquivos da PySUS (HTTPS, 443)</td>
+            <td>Toda consulta</td>
+          </tr>
+          <tr>
+            <td><strong>ftp.datasus.gov.br</strong></td>
+            <td>Os arquivos do DATASUS (FTP, porta 21)</td>
+            <td>Todo download</td>
+          </tr>
+          <tr>
+            <td><strong>apidadosabertos.saude.gov.br</strong></td>
+            <td>Atenção primária, Previne Brasil e SISAB (HTTPS)</td>
+            <td>Análises de APS</td>
+          </tr>
+          <tr>
+            <td><strong>dadosabertos.saude.gov.br</strong></td>
+            <td>Portal de dados abertos do Ministério (HTTPS)</td>
+            <td>Análises de APS</td>
+          </tr>
+          <tr>
+            <td><strong>pypi.org</strong> e <strong>files.pythonhosted.org</strong></td>
+            <td>Bibliotecas do Python</td>
+            <td>Só na instalação<br>(a versão completa dispensa)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="opcao" style="border-left-color: var(--verde);">
+      <h3>Texto pronto para abrir o chamado na TI</h3>
+      <p>Copie e cole — ele já traz os três pontos que costumam ser necessários e que
+      raramente são pedidos:</p>
+      <div class="ilustra">
+        <div class="selo">Texto para o chamado</div>
+        <div class="corpo" style="white-space:pre-wrap;font-size:0.9rem;">Solicito a liberação, no firewall, proxy e filtro de conteúdo, do domínio *.your-objectstorage.com por HTTPS (porta 443).
+
+A biblioteca pública PySUS, usada para acessar dados do DATASUS, consulta seu catálogo de arquivos em https://nbg1.your-objectstorage.com/pysus/public/ antes de qualquer download. A conexão TCP na porta 443 chega a ser estabelecida, mas a negociação TLS não se completa quando o acesso passa pela rede da instituição; pelo 4G o mesmo endereço funciona.
+
+Três observações que costumam ser necessárias:
+
+1. A regra deve ser por nome de domínio (FQDN), não por IP: é uma infraestrutura em nuvem e os endereços mudam.
+2. Verificar se a inspeção de TLS está interferindo na conexão.
+3. O proxy precisa preservar requisições HTTP Range e permitir respostas 206 Partial Content com Content-Range — o catálogo é lido em pedaços. Sem isso, uma consulta simples passa a baixar arquivos de até 128 MB.
+
+Também são necessários: ftp.datasus.gov.br (FTP, porta 21), apidadosabertos.saude.gov.br e dadosabertos.saude.gov.br (HTTPS).</div>
+      </div>
+    </div>
+
+    <div class="opcao">
+      <h3>Enquanto a liberação não sai: use o 4G do celular</h3>
+      <p>Funciona, mas tem uma armadilha que faz muita gente desistir achando que não
+      resolveu:</p>
+      <p class="nao-feche">⚠ <strong>Conectar no Wi-Fi do celular não basta.</strong> Com o cabo
+      de rede ligado, o Windows continua mandando todo o tráfego pelo cabo — ele escolhe a rota
+      pela métrica das interfaces, não pela última que você conectou. O erro se repete
+      exatamente igual, e parece que o celular não funcionou.</p>
+      <p class="oque-fazer">👉 <strong>Desconecte o cabo de rede</strong> (ou desative o
+      adaptador Ethernet em <em>Configurações → Rede e Internet → Configurações avançadas de
+      rede</em>). Aí sim o tráfego passa pelo celular. Ao terminar, reconecte o cabo
+      normalmente.</p>
+      <p>Não mexa em métricas de interface, rotas ou adaptadores por conta própria num
+      computador da instituição: além de poder violar as regras internas, é fácil deixar a
+      máquina sem rede. Conectar-se à sua própria rede móvel, com o cabo desligado, não altera
+      nenhuma configuração do computador.</p>
     </div>
   </div>
 </section>
