@@ -128,16 +128,27 @@ jobs:
           Get-ChildItem "installer/Output" |
             Select-Object Name, @{n='MB';e={[math]::Round($_.Length/1MB,1)}}
 
+      # A release e criada VAZIA e cada arquivo sobe em seguida, um a um.
+      #
+      # Antes tudo ia numa chamada so, e quando um envio falhava o `gh` levava
+      # a release junto: sobrava uma compilacao inteira perdida e um "exit code
+      # 1" sem dizer qual arquivo tinha falhado. Foi o que aconteceu duas vezes
+      # na v1.8.10 (o passo levava 30s nas versoes anteriores e passou a gastar
+      # 5 minutos antes de desistir). Separado assim, a release sobrevive, o
+      # log diz o nome e o tamanho do arquivo que nao subiu, e da para repetir
+      # so o envio que falhou.
       - name: Publicar a Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Se a release ja existir (tentativa anterior que subiu parte dos
+          # arquivos), seguimos direto para os envios em vez de quebrar aqui.
+          gh release view "${{ github.ref_name }}" 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release ${{ github.ref_name }} ja existe; vou apenas enviar os arquivos."
+          } else {
           gh release create "${{ github.ref_name }}" `
-            "installer/Output/PySusNoCode-Setup-${{ steps.ver.outputs.version }}.exe" `
-            "installer/Output/PySusNoCode-Setup.exe" `
-            "installer/Output/PySusNoCode-Setup-Completo-${{ steps.ver.outputs.version }}.exe" `
-            "installer/Output/PySusNoCode-Setup-Completo.exe" `
             --title "PySusNoCode ${{ steps.ver.outputs.version }}" `
             --generate-notes `
             --notes "Instalador para Windows 10/11 (64 bits), por usuario e sem administrador.
@@ -148,3 +159,34 @@ jobs:
           - **PySusNoCode-Setup-Completo.exe** (cerca de 350 MB) - traz todas as bibliotecas dentro e nao acessa a internet para instalar. Use esta em prefeituras, hospitais e unidades de saude, onde a rede costuma bloquear o pypi.org.
 
           Os arquivos sem numero de versao no nome sao copias identicas, usadas pelos links permanentes de download."
+            if ($LASTEXITCODE -ne 0) { throw "gh release create falhou" }
+          }
+
+          $arquivos = @(
+            "PySusNoCode-Setup-${{ steps.ver.outputs.version }}.exe",
+            "PySusNoCode-Setup.exe",
+            "PySusNoCode-Setup-Completo-${{ steps.ver.outputs.version }}.exe",
+            "PySusNoCode-Setup-Completo.exe"
+          )
+
+          $falhas = @()
+          foreach ($nome in $arquivos) {
+            $caminho = "installer/Output/$nome"
+            $mb = [math]::Round((Get-Item $caminho).Length / 1MB, 1)
+            Write-Host "Enviando $nome ($mb MB)..."
+            $inicio = Get-Date
+            gh release upload "${{ github.ref_name }}" $caminho --clobber
+            $segundos = [math]::Round(((Get-Date) - $inicio).TotalSeconds)
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "::error::FALHOU o envio de $nome ($mb MB) depois de ${segundos}s"
+              $falhas += $nome
+            } else {
+              Write-Host "  ok em ${segundos}s"
+            }
+          }
+
+          if ($falhas.Count -gt 0) {
+            Write-Host "::error::Nao subiram: $($falhas -join ', '). A release foi criada e os demais arquivos estao la; repita o envio dos que faltam."
+            exit 1
+          }
+          Write-Host "Release publicada com os $($arquivos.Count) arquivos."
