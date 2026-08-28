@@ -6,7 +6,24 @@ import json
 import os
 from pathlib import Path
 
-APP_DIR = Path(os.environ.get("APPDATA", str(Path.home()))) / "PySusNoCode"
+# Onde ficam configurações, lições e o log de diagnóstico.
+#
+# APPDATA some do ambiente com mais frequência do que se imagina — e, quando
+# some, o aplicativo passa a gravar noutro lugar e sobe com tudo no padrão de
+# fábrica, como se o usuário nunca o tivesse configurado. Isso ja aconteceu
+# nesta máquina e custou uma investigação inteira, porque nada avisava.
+# Guardamos o motivo para que a interface possa dizê-lo.
+PASTA_PADRAO_INDISPONIVEL = ""
+_appdata = os.environ.get("APPDATA", "")
+if not _appdata:
+    PASTA_PADRAO_INDISPONIVEL = (
+        "A variável APPDATA não existe neste processo, então não consegui usar "
+        r"a pasta habitual (%APPDATA%\PySusNoCode). Estou usando a sua pasta "
+        "pessoal — suas configurações e lições anteriores podem parecer "
+        "perdidas, mas continuam onde estavam."
+    )
+    _appdata = str(Path.home())
+APP_DIR = Path(_appdata) / "PySusNoCode"
 CONFIG_FILE = APP_DIR / "config.json"
 LESSONS_FILE = APP_DIR / "lessons.json"
 NOTEBOOKS_DIR = Path.home() / "Documents" / "PySusNoCode"
@@ -92,23 +109,52 @@ DEFAULTS = {
 class Config:
     def __init__(self) -> None:
         self.data = dict(DEFAULTS)
+        # Por que as configurações do usuário não foram carregadas, quando for
+        # o caso. Voltar ao padrão de fábrica em silêncio é indistinguível, na
+        # tela, de uma instalação nova — e manda quem investiga para o lado
+        # errado.
+        self.motivo_do_padrao = PASTA_PADRAO_INDISPONIVEL
+        self.erro_ao_salvar = ""
         self.load()
 
     def load(self) -> None:
+        if not CONFIG_FILE.exists():
+            if not self.motivo_do_padrao and CONFIG_FILE.parent.exists():
+                self.motivo_do_padrao = (
+                    f"Não havia configuração salva em {CONFIG_FILE} — usei os "
+                    "valores padrão."
+                )
+            return
         try:
-            if CONFIG_FILE.exists():
-                stored = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-                for key in DEFAULTS:
-                    if key in stored:
-                        self.data[key] = stored[key]
-        except Exception:
-            pass  # config corrompida: segue com os padrões
+            stored = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        except Exception as erro:  # noqa: BLE001
+            self.motivo_do_padrao = (
+                f"Não consegui ler {CONFIG_FILE} ({type(erro).__name__}), "
+                "então voltei aos valores padrão. O arquivo não foi apagado."
+            )
+            return
+        for key in DEFAULTS:
+            if key in stored:
+                self.data[key] = stored[key]
 
     def save(self) -> None:
-        APP_DIR.mkdir(parents=True, exist_ok=True)
-        CONFIG_FILE.write_text(
-            json.dumps(self.data, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        """Grava as configurações, guardando o motivo se não conseguir.
+
+        Não levanta: uma falha aqui não deve derrubar o aplicativo no meio de
+        uma análise. Mas também não pode sumir — `erro_ao_salvar` é o que
+        permite à interface dizer que as mudanças não sobreviverão ao
+        fechamento.
+        """
+        try:
+            APP_DIR.mkdir(parents=True, exist_ok=True)
+            CONFIG_FILE.write_text(
+                json.dumps(self.data, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except Exception as erro:  # noqa: BLE001
+            self.erro_ao_salvar = f"{type(erro).__name__}: {erro}"
+            return
+        self.erro_ao_salvar = ""
 
     def __getitem__(self, key: str):
         return self.data.get(key, DEFAULTS.get(key))

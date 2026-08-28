@@ -70,6 +70,8 @@ class AgentSDKBackend:
         # Qual executável usar. Fica gravado depois que um deles funciona, para
         # não repetir a tentativa que falhou a cada mensagem.
         self._cli_escolhido: str | None = None
+        # (caminho, erro) de cada executável tentado na última falha.
+        self.erros_por_cli: list[tuple[str | None, str]] = []
 
     def reset(self) -> None:
         self.session_id = None
@@ -135,6 +137,10 @@ class AgentSDKBackend:
             candidatos = [None]
 
         falha: Exception | None = None
+        # Guarda o erro DE CADA UM. Mostrar só o último escondia metade do
+        # diagnóstico: o usuário via a queixa sobre o segundo executável sem
+        # saber o que tinha acontecido com o primeiro.
+        self.erros_por_cli = []
         for caminho in candidatos:
             self._cli_escolhido = caminho
             try:
@@ -143,8 +149,12 @@ class AgentSDKBackend:
                 from .diag import registrar
 
                 registrar("claude code nao iniciou", f"{caminho} | {erro}")
+                self.erros_por_cli.append((caminho, f"{type(erro).__name__}: {erro}"))
                 falha = erro
         self._cli_escolhido = None
+        # Viaja junto com a exceção: _friendly é estático e não enxerga o
+        # backend, mas precisa contar o que houve com cada executável.
+        falha._por_cli = list(self.erros_por_cli)  # type: ignore[attr-defined]
         raise falha  # type: ignore[misc]
 
     async def _send_async(
@@ -232,7 +242,7 @@ class AgentSDKBackend:
         return "O Claude Code retornou um erro: " + result
 
     @staticmethod
-    def _explicar_cli(exc: Exception) -> str:
+    def _explicar_cli(exc: Exception, por_cli=None) -> str:
         """Diz o que realmente houve com o executável do Claude Code.
 
         O SDK levanta CLINotFoundError sempre que a criação do processo termina
@@ -240,7 +250,14 @@ class AgentSDKBackend:
         arquivo não existe". Até a 1.8.13 o aplicativo afirmava que o Claude
         Code não estava instalado, mesmo quando o executável estava lá e
         íntegro; o usuário ia instalar de novo o que já tinha.
+
+        `por_cli` traz o erro de CADA executável tentado. Sem isso a mensagem
+        mostrava só o último, e quem investigasse não saberia o que aconteceu
+        com o primeiro.
         """
+        from .config import PASTA_PADRAO_INDISPONIVEL
+        from .diag import FALHA_AO_GRAVAR
+
         achados = listar_claude_clis()
         if not achados:
             return (
@@ -250,21 +267,46 @@ class AgentSDKBackend:
                 "irm https://claude.ai/install.ps1 | iex"
             )
 
-        lista = "\n".join(f"• {c}" for c in achados)
-        if len(achados) > 1:
+        if por_cli:
+            lista = "\n".join(
+                f"• {caminho or '(busca do próprio SDK)'}\n   {erro}"
+                for caminho, erro in por_cli
+            )
+        else:
+            lista = "\n".join(f"• {c}" for c in achados)
+            lista += f"\n\nDetalhe técnico: {exc}"
+
+        # Conta o que foi REALMENTE tentado. Contar `achados` fazia a abertura
+        # falar em um executável enquanto a lista abaixo mostrava dois.
+        quantos = len(por_cli) if por_cli else len(achados)
+        if quantos > 1:
             abertura = (
                 "O Claude Code está instalado, mas o Windows não conseguiu "
-                f"iniciá-lo. Tentei os {len(achados)} executáveis que encontrei "
-                "e nenhum respondeu:"
+                f"iniciá-lo. Tentei os {quantos} executáveis que encontrei e "
+                "nenhum respondeu:"
             )
         else:
             abertura = (
                 "O Claude Code está instalado, mas o Windows não conseguiu "
                 "iniciá-lo. O executável que encontrei foi:"
             )
+
+        # Estes dois sintomas costumam aparecer junto com a falha de criar
+        # processo, e denunciam um ambiente estragado — não um Claude Code
+        # ausente. Dizê-los aqui poupa horas de investigação.
+        alertas = ""
+        if PASTA_PADRAO_INDISPONIVEL:
+            alertas += f"\n\n⚠ {PASTA_PADRAO_INDISPONIVEL}"
+        if FALHA_AO_GRAVAR:
+            alertas += f"\n\n⚠ {FALHA_AO_GRAVAR}"
+        if alertas:
+            alertas += (
+                "\n\nEsses avisos indicam que o ambiente deste processo está "
+                "incompleto. Fechar e abrir o aplicativo costuma resolver."
+            )
+
         return (
-            f"{abertura}\n{lista}\n\n"
-            f"Detalhe técnico: {exc}\n\n"
+            f"{abertura}\n{lista}{alertas}\n\n"
             "O que costuma resolver: feche e abra o PySusNoCode; se persistir, "
             "reinicie o computador — um antivírus ou uma atualização em "
             "andamento podem estar segurando o arquivo. Enquanto isso, você "
@@ -280,7 +322,7 @@ class AgentSDKBackend:
             return f"Erro ao falar com o Claude: {exc}"
 
         if isinstance(exc, CLINotFoundError):
-            return AgentSDKBackend._explicar_cli(exc)
+            return AgentSDKBackend._explicar_cli(exc, getattr(exc, "_por_cli", None))
         if isinstance(exc, ProcessError):
             detail = f"{exc} {getattr(exc, 'stderr', '') or ''}"[-800:]
             low = detail.lower()
