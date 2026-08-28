@@ -58,6 +58,50 @@ class LLMError(Exception):
     """Erro amigável, com mensagem em português pronta para exibição."""
 
 
+# O Windows recusa uma linha de comando acima de 32.767 caracteres, e o Agent
+# SDK passa o prompt de sistema como ARGUMENTO do claude.exe. Com as lições
+# acumuladas o prompt chegou a 48 mil caracteres e a criação do processo passou
+# a falhar com WinError 206 — que o Python devolve como FileNotFoundError, e o
+# SDK traduz para "Claude Code not found". Um binário de 334 MB, íntegro e
+# funcionando, era declarado ausente.
+#
+# A margem existe porque os outros argumentos (modelo, resume, tools, o próprio
+# caminho do executável) também ocupam a linha.
+LIMITE_LINHA_DE_COMANDO = 32767
+MARGEM_PARA_OUTROS_ARGUMENTOS = 4000
+
+
+def _prompt_de_sistema(texto: str):
+    """Entrega o prompt ao SDK pelo caminho que couber.
+
+    Prompts curtos seguem como argumento, que é o caminho mais simples e não
+    toca o disco. Os longos vão por arquivo (`--system-prompt-file`), que não
+    tem teto — funciona inclusive no claude.exe embutido, mais antigo.
+
+    Se a gravação falhar, devolve o texto: para prompt curto continua correto,
+    e para prompt longo o erro que aparece é o do SDK, já explicado na
+    interface.
+    """
+    if len(texto) <= LIMITE_LINHA_DE_COMANDO - MARGEM_PARA_OUTROS_ARGUMENTOS:
+        return texto
+
+    from .config import APP_DIR
+
+    arquivo = APP_DIR / "prompt-de-sistema.md"
+    try:
+        APP_DIR.mkdir(parents=True, exist_ok=True)
+        arquivo.write_text(texto, encoding="utf-8")
+    except Exception as erro:  # noqa: BLE001
+        from .diag import registrar
+
+        registrar(
+            "nao consegui gravar o prompt de sistema",
+            f"{arquivo} | {type(erro).__name__}: {erro}",
+        )
+        return texto
+    return {"type": "file", "path": str(arquivo)}
+
+
 # ---------------------------------------------------------------------------
 # Backend 1: Claude Agent SDK (conta claude.ai via CLI do Claude Code)
 # ---------------------------------------------------------------------------
@@ -148,8 +192,19 @@ class AgentSDKBackend:
             except CLINotFoundError as erro:
                 from .diag import registrar
 
-                registrar("claude code nao iniciou", f"{caminho} | {erro}")
-                self.erros_por_cli.append((caminho, f"{type(erro).__name__}: {erro}"))
+                # A causa é o que importa: o SDK reescreve qualquer
+                # FileNotFoundError como "Claude Code not found", e foi assim
+                # que um WinError 206 (linha de comando longa demais) passou
+                # o dia inteiro disfarçado de executável ausente.
+                detalhe = f"{type(erro).__name__}: {erro}"
+                causa = erro.__cause__ or erro.__context__
+                if causa is not None:
+                    detalhe += f" | causa: {type(causa).__name__}: {causa}"
+                    winerror = getattr(causa, "winerror", None)
+                    if winerror is not None:
+                        detalhe += f" (WinError {winerror})"
+                registrar("claude code nao iniciou", f"{caminho} | {detalhe}")
+                self.erros_por_cli.append((caminho, detalhe))
                 falha = erro
         self._cli_escolhido = None
         # Viaja junto com a exceção: _friendly é estático e não enxerga o
@@ -176,7 +231,7 @@ class AgentSDKBackend:
         cli = self._cli_escolhido or find_claude_cli(self.config["cli_path"])
         options = ClaudeAgentOptions(
             model=model,
-            system_prompt=system_prompt,
+            system_prompt=_prompt_de_sistema(system_prompt),
             tools=[],
             allowed_tools=[],
             max_turns=1,
