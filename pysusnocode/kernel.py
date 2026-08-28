@@ -96,6 +96,70 @@ TEXTO_PARA_TI = (
     "— — — fim do texto — — —"
 )
 
+# Nomes de adaptador que denunciam uma VPN ativa. A lista cobre os produtos
+# mais usados; o casamento é por trecho, em minúsculas.
+MARCAS_DE_VPN = (
+    "protun", "proton",            # ProtonVPN
+    "nordlynx", "nordvpn",         # NordVPN
+    "wireguard", "wg0",
+    "openvpn", "tap-windows", "tap-nordvpn",
+    "mullvad", "expressvpn", "surfshark", "cyberghost",
+    "private internet access", "pia_",
+    "tunnelbear", "windscribe", "hotspot shield",
+    "anyconnect", "cisco", "forticlient", "globalprotect", "pulse secure",
+    "zerotier", "tailscale", "hamachi",
+    "vpn",                          # genérico, por último
+)
+
+
+def vpn_ativa() -> str:
+    """Nome do adaptador de VPN ativo, ou string vazia.
+
+    Checagem LOCAL: apenas enumera adaptadores, sem enviar nada para fora e
+    sem alterar rota, métrica ou configuração alguma.
+
+    Existe porque uma VPN produz exatamente o mesmo sintoma de uma rede
+    institucional bloqueada — e o conserto é oposto. Os sites do governo
+    brasileiro (saude.gov.br, datasus.gov.br) recusam conexão vinda de IP
+    estrangeiro: a conexão TCP abre e é derrubada na negociação TLS. Pior, o
+    estado é enganoso pela metade, porque o catálogo da PySUS fica num
+    provedor que não bloqueia — então parte do aplicativo continua
+    funcionando enquanto tudo que é .gov.br falha.
+    """
+    try:
+        import psutil
+
+        estados = psutil.net_if_stats()
+    except Exception:  # noqa: BLE001
+        return ""
+    for nome, estado in estados.items():
+        if not getattr(estado, "isup", False):
+            continue
+        baixo = nome.lower()
+        if any(marca in baixo for marca in MARCAS_DE_VPN):
+            return nome
+    return ""
+
+
+AVISO_DE_VPN = (
+    "\n\n⚠ Encontrei uma VPN ativa neste computador (adaptador “{}”).\n\n"
+    "Com VPN, os sites do Ministério da Saúde e do DATASUS costumam recusar "
+    "a conexão: eles rejeitam acesso vindo de outro país, e a conexão é "
+    "derrubada no meio. O sintoma é idêntico ao de uma rede bloqueada, mas a "
+    "solução é o contrário — em vez de pedir liberação, DESLIGUE a VPN e "
+    "tente de novo.\n\n"
+    "Repare que parte do aplicativo continua funcionando mesmo assim, porque "
+    "nem todos os endereços que a PySUS usa ficam no Brasil. Isso torna o "
+    "problema mais confuso, não menos."
+)
+
+
+def aviso_de_vpn() -> str:
+    """Texto a acrescentar às mensagens de rede quando há VPN ativa."""
+    nome = vpn_ativa()
+    return AVISO_DE_VPN.format(nome) if nome else ""
+
+
 ERROS_DE_AMBIENTE = (
     {
         "sempre": ("duckdb",),
@@ -123,6 +187,7 @@ ERROS_DE_AMBIENTE = (
     # orientação para a TI é outra.
     {
         "sempre": ("pysus",),
+        "rede": True,
         "alguma": (
             "certificate_verify_failed",
             "sslcertverificationerror",
@@ -144,6 +209,7 @@ ERROS_DE_AMBIENTE = (
     },
     {
         "sempre": ("pysus",),
+        "rede": True,
         "alguma": (
             "connecttimeout",
             "connecterror",
@@ -180,13 +246,22 @@ def erro_de_ambiente(texto: str) -> str | None:
     """Reconhece erros que não são do código e explica o que fazer.
 
     Devolve a explicação em português, ou None se o erro for mesmo do código.
+
+    Quando o erro é de rede e há VPN ativa, o aviso da VPN vem PRIMEIRO: é a
+    hipótese mais provável, e a que o resto da mensagem contradiria (ela
+    manda pedir liberação à TI, quando o certo é desligar a VPN).
     """
     baixo = (texto or "").lower()
     for caso in ERROS_DE_AMBIENTE:
         if all(marca in baixo for marca in caso["sempre"]) and any(
             marca in baixo for marca in caso["alguma"]
         ):
-            return caso["explicacao"]
+            explicacao = caso["explicacao"]
+            if caso.get("rede"):
+                aviso = aviso_de_vpn()
+                if aviso:
+                    return aviso.lstrip("\n") + "\n\n" + explicacao
+            return explicacao
     return None
 
 
