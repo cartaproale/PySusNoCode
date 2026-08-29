@@ -17,12 +17,22 @@ nbformat>=5
 # foram validados; para subir, rode antes:
 #     python _ferramentas/vigiar_pysus.py --nova
 #
-# 2.10.4: escolhida por causa do SIA. Ela reconhece prefixos de arquivo que a
-# 2.10.3 deixava sem grupo (ABO, ACF, ATD, SAD, AMP) e aceita o sufixo
-# alfabético dos arquivos partidos. Atenção: os nomes que ela dá aos grupos
-# novos NÃO são a nomenclatura do DATASUS — "AB" não é Atenção Básica, é
-# acompanhamento de cirurgia bariátrica. Ver as lições 100 a 103.
-pysus==2.10.4
+# 2.10.6: auditada em 29/08/2026 diferenciando os ARQUIVOS contra a 2.10.4,
+# nao o CHANGELOG — que subestima o que mudou: a 2.10.6 aparece la so como
+# "fix readthedocs build", mas o leitor de DBF passou a ler o arquivo em
+# pedacos em vez de carrega-lo inteiro na memoria. E ganho real para nos, que
+# perdemos o kernel por falta de memoria com frequencia.
+# O que a auditoria confirmou: api/ftp/databases.py, api/_impl/databases.py,
+# api/columns.py e api/types.py estao byte a byte identicos a 2.10.4 — os
+# grupos do SIA, o filtro .csv da origem Saude e os metadados de coluna nao
+# mudaram, entao nossas licoes seguem validas. A 2.10.5 removeu a base
+# VIGILANCIAMEIOAMBIENTE, que nenhum exemplo nosso usa.
+#
+# Herdado da 2.10.4 e ainda valido: ela reconhece prefixos que a 2.10.3
+# deixava sem grupo (ABO, ACF, ATD, SAD, AMP). Atencao: os nomes que ela da
+# aos grupos NAO sao a nomenclatura do DATASUS — "AB" nao e Atencao Basica, e
+# acompanhamento de cirurgia bariatrica. Ver as licoes 100 a 103.
+pysus==2.10.6
 # A pysus 2.10 importa "yaml" logo no carregamento do pacote, mas esqueceu de
 # declarar o PyYAML entre as dependências dela. Sem esta linha, a instalação
 # termina "com sucesso" e o aplicativo quebra no primeiro import com

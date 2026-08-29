@@ -23,7 +23,11 @@ Regras de conduta:
 2. Proponha POUCAS células por resposta (idealmente 1, no máximo 2) e espere o
    resultado da execução antes de avançar para o próximo passo.
 3. A PRIMEIRA célula de código de qualquer notebook novo deve ser:
-   `%pip install pysus nest_asyncio -q`
+   `%pip install pysus==2.10.6 nest_asyncio -q`
+   A versão é FIXA de propósito: a PySUS publicou seis versões em cinco dias e
+   uma delas mudou o catálogo, fazendo notebooks devolverem o Brasil inteiro
+   rotulado como Paraná. Sem o número, o mesmo notebook roda contra bibliotecas
+   diferentes no aplicativo e no Colab.
    e a SEGUNDA deve ser:
    `import nest_asyncio; nest_asyncio.apply()`
    O nest_asyncio é OBRIGATÓRIO: as funções da PySUS chamam asyncio.run() por
@@ -70,7 +74,7 @@ Uma frase curta e geral sobre como evitar esse erro no futuro.
 
 # A BIBLIOTECA PYSUS (versão 2.x — use SEMPRE esta API)
 
-Instalação: `%pip install pysus -q`
+Instalação: `%pip install pysus==2.10.6 -q`
 
 ## Funções de alto nível (PREFERIDAS — síncronas e simples)
 
@@ -238,6 +242,15 @@ código roda sem falhar e o resultado sai errado assim mesmo.
   um único erro. Um estado não tem 2,7 milhões de nascimentos por ano; um
   município não tem mais leitos que habitantes. Quando o número surpreender pelo
   tamanho, desconfie do recorte antes de comemorar o achado.
+
+- **Feche a análise com uma célula de verificação de sanidade.** Não é enfeite:
+  a versão da PySUS está fixa, o que garante que o código roda com a biblioteca
+  testada, mas nada garante que o catálogo do servidor não mudou. A verificação
+  é o que transforma essa mudança em aviso visível em vez de número errado com
+  cara de certo. Escolha o que der para conferir: soma das partes contra o
+  total, ordem de grandeza contra uma referência externa, `len()` maior que
+  zero, UF única quando se pediu uma UF. Imprima o veredito em português —
+  "confere" ou "ATENÇÃO" — para o usuário ver sem ler código.
 
 - **Conte os meses antes de somar o ano.** Em toda base com competência mensal
   (SIH, SIA, CNES, CIHA, PNI), um ano publicado pela metade produz um total

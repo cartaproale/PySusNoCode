@@ -195,6 +195,17 @@ class SettingsDialog(QDialog):
         self.verificar_agora_btn.clicked.connect(self._verificar_agora)
         form.addRow("", self.verificar_agora_btn)
 
+        # Fica ao lado da verificação de versão porque responde à mesma
+        # pergunta, um nível abaixo: o aplicativo está em dia, mas as
+        # bibliotecas e as fontes de dados que ele usa também estão?
+        self.versoes_btn = QPushButton("📦 Versões e fontes de dados")
+        self.versoes_btn.setToolTip(
+            "Mostra a versão da PySUS e das demais bibliotecas em uso, e o que "
+            "existe de mais recente; e quais sistemas de dados estão no ar."
+        )
+        self.versoes_btn.clicked.connect(self._abrir_versoes)
+        form.addRow("", self.versoes_btn)
+
         self.timeout_spin = QSpinBox()
         self.timeout_spin.setRange(30, 3600)
         self.timeout_spin.setSingleStep(30)
@@ -265,6 +276,11 @@ class SettingsDialog(QDialog):
         self.testar_btn.setEnabled(True)
         self.testar_btn.setText("🔎 Testar conexão com a OpenAI")
         QMessageBox.information(self, "Teste de conexão — OpenAI", texto)
+
+    def _abrir_versoes(self) -> None:
+        from .versoes_dialog import VersoesDialog
+
+        VersoesDialog(self).exec()
 
     def _verificar_agora(self) -> None:
         janela = self.parent()
