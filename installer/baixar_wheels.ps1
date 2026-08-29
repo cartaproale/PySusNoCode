@@ -93,6 +93,11 @@ Write-Host ""
 Write-Host ("   {0} arquivos .whl, {1:N0} MB" -f $arquivos.Count, $tamanho) -ForegroundColor Green
 Write-Host "   Pasta: $destino"
 
+Write-Host ""
+Write-Host "== Atualizando TERCEIROS.md a partir das wheels =="
+& $pyExe (Join-Path $projeto "installer\gerar_terceiros.py")
+if ($LASTEXITCODE -ne 0) { throw "nao consegui gerar o TERCEIROS.md" }
+
 Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host ""
 Write-Host "Pronto. Agora compile com:" -ForegroundColor Green

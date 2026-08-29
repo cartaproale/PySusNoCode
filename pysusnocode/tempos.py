@@ -142,6 +142,10 @@ def estimativa(tipo: str, contexto: str = "") -> str:
     if len(valores) < MINIMO_PARA_ESTIMAR:
         return ""
     tipico = _percentil(valores, 0.5)
+    # "costuma levar 0 segundos" nao informa nada e ainda parece defeito. Abaixo
+    # de dois segundos a espera nem chega a ser percebida: melhor calar.
+    if tipico < 2:
+        return ""
     demorado = _percentil(valores, 0.8)
     frase = f"costuma levar {em_palavras(tipico)}"
     if demorado > tipico * 1.6:

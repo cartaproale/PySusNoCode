@@ -18,7 +18,7 @@
 ; No GitHub Actions a versao vem da tag (ISCC /DMyAppVersion=X.Y.Z);
 ; este valor e o padrao para compilacoes locais.
 #ifndef MyAppVersion
-  #define MyAppVersion "1.8.22"
+  #define MyAppVersion "1.8.23"
 #endif
 #define MyAppPublisher "PySusNoCode"
 #define MyAppURL "https://pysus.readthedocs.io"
@@ -75,6 +75,11 @@ Source: "..\pysusnocode\*"; DestDir: "{app}\app\pysusnocode"; \
     Excludes: "__pycache__,*.pyc"; Flags: recursesubdirs createallsubdirs
 Source: "..\requirements.txt"; DestDir: "{app}\app"
 Source: "..\README.md"; DestDir: "{app}"
+; O aplicativo e MIT, mas distribui bibliotecas GPL, LGPL e AGPL. Estes
+; dois arquivos sao a atribuicao devida — vao nas duas versoes, porque a
+; versao leve baixa exatamente as mesmas bibliotecas na primeira execucao.
+Source: "..\LICENSE"; DestDir: "{app}"
+Source: "..\TERCEIROS.md"; DestDir: "{app}"
 Source: "bootstrap.ps1"; DestDir: "{app}"
 Source: "assets\pysusnocode.ico"; DestDir: "{app}"
 Source: "vendor\python-embed-amd64.zip"; DestDir: "{app}\vendor"

@@ -119,6 +119,23 @@ in an embedded kernel, and exports Google Colab-ready `.ipynb` files. Licensed
 under MIT; installers are built from source by GitHub Actions on every version
 tag and published to GitHub Releases.
 
+## Licença
+
+O PySusNoCode é distribuído sob a licença **MIT** (veja [`LICENSE`](LICENSE)).
+
+O instalador embarca 122 bibliotecas de terceiros para funcionar em redes que
+bloqueiam o pypi.org. A maioria é permissiva (MIT, BSD, Apache), e sete têm
+licença recíproca — entre elas a [PySUS](https://github.com/AlertaDengue/PySUS)
+(GPLv3), o [pyreaddbc](https://github.com/AlertaDengue/PyReadDBC) (AGPL-3.0) e o
+PySide6 (LGPL-3.0). Nenhuma impede a distribuição nem altera a licença do nosso
+código; todas pedem atribuição.
+
+A lista completa, com versão e licença de cada componente, está em
+[`TERCEIROS.md`](TERCEIROS.md) — gerada a partir dos próprios arquivos a cada
+compilação, por `installer/gerar_terceiros.py`. O texto integral de cada licença
+viaja dentro do respectivo `.whl`. No aplicativo instalado, o mesmo resumo abre
+em **Configurações → ⚖ Licenças e componentes de terceiros**.
+
 ## Estrutura do código
 
 ```

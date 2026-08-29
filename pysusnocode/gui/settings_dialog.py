@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import subprocess
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import Qt, QThread, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -216,6 +217,16 @@ class SettingsDialog(QDialog):
         self.tempos_btn.clicked.connect(self._abrir_tempos)
         form.addRow("", self.tempos_btn)
 
+        # Fica junto das versoes porque responde a mesma familia de pergunta:
+        # o que exatamente este programa esta usando, e sob que condicoes.
+        self.licencas_btn = QPushButton("⚖ Licenças e componentes de terceiros")
+        self.licencas_btn.setToolTip(
+            "O PySusNoCode é software livre (MIT) e embarca bibliotecas de "
+            "outros autores, algumas com licenças que pedem atribuição."
+        )
+        self.licencas_btn.clicked.connect(self._abrir_licencas)
+        form.addRow("", self.licencas_btn)
+
         self.timeout_spin = QSpinBox()
         self.timeout_spin.setRange(30, 3600)
         self.timeout_spin.setSingleStep(30)
@@ -320,6 +331,24 @@ class SettingsDialog(QDialog):
             "aplicativo e servem só para a barra de espera saber o que dizer.")
         QMessageBox.information(self, "Quanto costuma demorar",
                                 "\n".join(partes))
+
+    def _abrir_licencas(self) -> None:
+        from ..licencas import resumo, onde_estao
+
+        texto = resumo()
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle("Licenças e componentes de terceiros")
+        caixa.setTextFormat(Qt.PlainText)
+        caixa.setText(texto)
+        pasta = onde_estao()
+        if pasta is not None:
+            abrir = caixa.addButton("Abrir a pasta", QMessageBox.ActionRole)
+        else:
+            abrir = None
+        caixa.addButton("Fechar", QMessageBox.RejectRole)
+        caixa.exec()
+        if abrir is not None and caixa.clickedButton() is abrir:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(pasta)))
 
     def _verificar_agora(self) -> None:
         janela = self.parent()
