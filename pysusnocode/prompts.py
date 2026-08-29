@@ -350,14 +350,17 @@ def build_system_prompt(lessons_block: str) -> str:
     )
 
 
-WELCOME_HTML = """
+# Vídeo tutorial oficial do aplicativo (abre no navegador do usuário).
+VIDEO_TUTORIAL_URL = "https://youtu.be/MWqOzsnJxtY"
+
+WELCOME_MODELO = """
 <b>Bem-vindo(a) ao PySusNoCode!</b> 🩺📊<br><br>
 Eu crio, passo a passo, um notebook Python que baixa e analisa dados públicos de
 saúde do DATASUS usando a biblioteca <b>PySUS</b> — e eu mesmo testo cada célula
 antes de você usar. Ao final, você pode salvar o notebook e abri-lo no Google
 Colab, se quiser.<br><br>
 <b>Duas formas de começar</b><br><br>
-<b>1. Abrir uma análise pronta.</b> Há <b>27 exemplos validados</b> — mortalidade
+<b>1. Abrir uma análise pronta.</b> {QUANTOS} — mortalidade
 infantil, internações evitáveis, cobertura vacinal, dengue, leitos por
 habitante… Todos foram executados com dados reais antes de publicados. Clique
 em <b>📚 Exemplos</b>, no alto do notebook, escolha um e ele abre aqui, pronto
@@ -375,7 +378,36 @@ Se preferir, peça aqui mesmo: <i>“me mostre os exemplos prontos”</i>. 💬<
 <b>🎥 Tutorial</b> na barra acima a qualquer momento.
 """
 
-# Vídeo tutorial oficial do aplicativo (abre no navegador do usuário).
-VIDEO_TUTORIAL_URL = "https://youtu.be/MWqOzsnJxtY"
 
-WELCOME_HTML = WELCOME_HTML.replace("{VIDEO_TUTORIAL}", VIDEO_TUTORIAL_URL)
+def quantos_exemplos() -> int:
+    """Quantos exemplos a instalação tem, contados no catálogo.
+
+    Da cópia local, não da rede: a saudação aparece antes de qualquer coisa e
+    não pode esperar internet. Zero quando o catálogo não está disponível.
+    """
+    try:
+        from .exemplos import carregar_catalogo
+
+        exemplos, _origem, _aviso = carregar_catalogo(preferir_github=False)
+        return len(exemplos)
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def welcome_html() -> str:
+    """A saudação, com o número de exemplos contado na hora.
+
+    O número já ficou escrito à mão aqui e envelheceu em silêncio: o aplicativo
+    anunciava 27 exemplos quando já havia 35. Contar é a única forma de a frase
+    continuar verdadeira sem alguém lembrar de atualizá-la.
+    """
+    quantos = quantos_exemplos()
+    if quantos > 1:
+        frase = f"Há <b>{quantos} exemplos validados</b>"
+    elif quantos == 1:
+        frase = "Há <b>1 exemplo validado</b>"
+    else:
+        frase = "Há <b>dezenas de exemplos validados</b>"
+    return (WELCOME_MODELO
+            .replace("{QUANTOS}", frase)
+            .replace("{VIDEO_TUTORIAL}", VIDEO_TUTORIAL_URL))

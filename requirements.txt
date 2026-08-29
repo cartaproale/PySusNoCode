@@ -39,6 +39,13 @@ pysus==2.10.6
 # "ModuleNotFoundError: No module named 'yaml'". Quando a pysus corrigir isso,
 # esta linha vira redundante — e inofensiva.
 pyyaml>=6.0
+# Mesma historia do pyyaml: a pysus usa cryptography em mask_data/unmask_data
+# (import dentro da funcao) e nao a declara. Ate 29/08/2026 ela chegava aqui de
+# carona, por um extra OPCIONAL do PyJWT — ou seja, uma instalacao limpa podia
+# nao ter, e o erro so apareceria no meio da analise de quem mascara dados.
+# Declarada de proposito para que a licao "neste aplicativo funciona" seja
+# verdade por construcao, e nao por acaso.
+cryptography>=42
 # Obrigatório para a PySUS funcionar dentro de um notebook: as funções dela
 # chamam asyncio.run(), que falha quando já existe um laço de eventos rodando.
 nest_asyncio>=1.6

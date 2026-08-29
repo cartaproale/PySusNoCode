@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import threading
+from time import monotonic
 
 from PySide6.QtCore import QThread, Signal
 
+from .. import tempos
 from ..kernel import ExecResult, NotebookKernel
 from ..llm import LLMError
+
+
+class _Interrompido(Exception):
+    """Cancelamento do usuario: sai do cronometro sem virar medicao."""
 
 
 class LLMWorker(QThread):
@@ -25,13 +31,26 @@ class LLMWorker(QThread):
 
     def run(self) -> None:
         try:
-            text = self.backend.send(
-                self.user_text,
-                self.system_prompt,
-                self.model,
-                self.chunk.emit,
-                self.cancel,
-            )
+            # O tempo e medido aqui, e nao na janela: e daqui que da para separar
+            # a espera da IA da espera do kernel, que sao coisas diferentes.
+            with tempos.Cronometro(tempos.IA, str(self.model or "")) as relogio:
+
+                def ao_receber(pedaco: str) -> None:
+                    relogio.primeira_resposta()
+                    self.chunk.emit(pedaco)
+
+                text = self.backend.send(
+                    self.user_text,
+                    self.system_prompt,
+                    self.model,
+                    ao_receber,
+                    self.cancel,
+                )
+                if self.cancel.is_set():
+                    raise _Interrompido
+            self.done.emit(text)
+        except _Interrompido:
+            # Cancelado pelo usuario: nao e resposta, nao vira estatistica.
             self.done.emit(text)
         except LLMError as exc:
             self.failed.emit(str(exc))
@@ -88,9 +107,16 @@ class CellRunWorker(QThread):
 
     def run(self) -> None:
         try:
+            inicio = monotonic()
             result: ExecResult = self.kernel.execute(
                 self.code, timeout=self.timeout, on_output=self.output.emit
             )
+            # Estouro de tempo e morte do kernel nao sao "quanto isto demora":
+            # sao o limite que nos mesmos impusemos e um acidente. Entrariam na
+            # media como dez minutos e assustariam quem so queria saber se da
+            # tempo de tomar um cafe. Celula que falhou rapido, essa conta.
+            if not result.timed_out and not result.kernel_morreu:
+                tempos.registrar(tempos.CELULA, monotonic() - inicio)
             self.done.emit(result)
         except Exception as exc:  # noqa: BLE001
             self.failed.emit(f"Falha ao executar a célula: {exc}")

@@ -50,7 +50,7 @@ from ..nb import STATUS_ERROR, STATUS_NEW, STATUS_OK, STATUS_RUNNING, Cell, Note
 from ..prompts import (
     FIX_PROMPT_TEMPLATE,
     VIDEO_TUTORIAL_URL,
-    WELCOME_HTML,
+    welcome_html,
     build_system_prompt,
 )
 from ..protocol import parse_response
@@ -60,6 +60,7 @@ from .chat_panel import ChatPanel
 from .flow_layout import FlowLayout
 from .notebook_panel import NotebookPanel
 from .settings_dialog import SettingsDialog
+from .. import tempos
 from .workers import CellRunWorker, KernelStartWorker, LLMWorker, UpdateCheckWorker
 
 PHASE_IDLE = "idle"
@@ -143,7 +144,7 @@ class MainWindow(QMainWindow):
 
         self._apply_appearance()
         self._configurar_atalhos_zoom()
-        self.chat.reset(WELCOME_HTML)
+        self.chat.reset(welcome_html())
         self._greet_connection()
         self._update_status()
         self._start_kernel()
@@ -304,6 +305,15 @@ class MainWindow(QMainWindow):
             f"  {kernel_txt}  ·  conexão: {backend_txt}  ·  "
             f"lições aprendidas: {self.lessons.count()}"
         )
+
+    def _com_estimativa(self, texto: str, tipo: str, contexto: str = "") -> str:
+        """Junta ao aviso de espera o tempo que aquilo costuma levar aqui.
+
+        Fica em branco nas primeiras vezes, quando ainda nao ha historico —
+        e melhor nao dizer nada do que chutar.
+        """
+        frase = tempos.estimativa(tipo, contexto)
+        return f"{texto} ({frase})" if frase else texto
 
     def _set_phase(self, phase: str, status: str = "") -> None:
         self.phase = phase
@@ -719,7 +729,7 @@ class MainWindow(QMainWindow):
         self.saved_path = None
         self.dirty = False
         self._update_title()
-        self.chat.reset(WELCOME_HTML)
+        self.chat.reset(welcome_html())
         self._greet_connection()
 
     # ------------------------------------------------------------------
@@ -846,7 +856,7 @@ class MainWindow(QMainWindow):
             self.notebook_panel.add_cell(cell)
 
         self.backend.reset()
-        self.chat.reset(WELCOME_HTML)
+        self.chat.reset(welcome_html())
         self.exec_notes = []
         self.fixing_cell = None
         self.pending_queue = []
@@ -914,7 +924,7 @@ class MainWindow(QMainWindow):
             self.chat.restore_entries(meta["chat"])
             contexto = "a conversa anterior foi restaurada"
         else:
-            self.chat.reset(WELCOME_HTML)
+            self.chat.reset(welcome_html())
             contexto = "este arquivo não tinha conversa salva"
 
         self.exec_notes = []
@@ -990,7 +1000,9 @@ class MainWindow(QMainWindow):
                 f"Pedido do usuário: {text}"
             )
             self.exec_notes = []
-        self._start_llm_turn(prompt, f"O {self._assistant()} está pensando…")
+        self._start_llm_turn(prompt, self._com_estimativa(
+            f"O {self._assistant()} está pensando…", tempos.IA,
+            str(self._current_model() or "")))
 
     def _start_llm_turn(self, prompt: str, status: str) -> None:
         self._set_phase(PHASE_LLM, status)
@@ -1163,7 +1175,8 @@ class MainWindow(QMainWindow):
         if widget:
             widget.refresh()
             self.notebook_panel.scroll_to_widget(widget)
-        self._set_phase(PHASE_EXEC, f"Executando a célula {index}…")
+        self._set_phase(PHASE_EXEC, self._com_estimativa(
+            f"Executando a célula {index}…", tempos.CELULA))
 
         worker = CellRunWorker(
             self.kernel, cell.source, float(self.config["cell_timeout"]), self
@@ -1305,9 +1318,9 @@ class MainWindow(QMainWindow):
             code=cell.source,
             error=error[-3000:],
         )
-        self._start_llm_turn(
-            prompt, f"O {self._assistant()} está corrigindo a célula {index}…"
-        )
+        self._start_llm_turn(prompt, self._com_estimativa(
+            f"O {self._assistant()} está corrigindo a célula {index}…",
+            tempos.IA, str(self._current_model() or "")))
 
     def _apply_fix(self, parsed) -> None:
         cell = self.fixing_cell

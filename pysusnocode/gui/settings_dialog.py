@@ -206,6 +206,16 @@ class SettingsDialog(QDialog):
         self.versoes_btn.clicked.connect(self._abrir_versoes)
         form.addRow("", self.versoes_btn)
 
+        # Ao lado do tempo limite por celula, porque e a mesma pergunta vista
+        # do outro lado: quanto isto costuma demorar de verdade, aqui.
+        self.tempos_btn = QPushButton("⏱ Quanto costuma demorar")
+        self.tempos_btn.setToolTip(
+            "Tempos medidos neste computador: quanto a IA leva para responder e "
+            "quanto uma célula leva para executar. Fica só aqui, não é enviado."
+        )
+        self.tempos_btn.clicked.connect(self._abrir_tempos)
+        form.addRow("", self.tempos_btn)
+
         self.timeout_spin = QSpinBox()
         self.timeout_spin.setRange(30, 3600)
         self.timeout_spin.setSingleStep(30)
@@ -281,6 +291,35 @@ class SettingsDialog(QDialog):
         from .versoes_dialog import VersoesDialog
 
         VersoesDialog(self).exec()
+
+    def _abrir_tempos(self) -> None:
+        from .. import tempos
+
+        linhas = tempos.resumo()
+        if not any(l["medicoes"] for l in linhas):
+            QMessageBox.information(
+                self, "Quanto costuma demorar",
+                "Ainda não há medições neste computador.\n\n"
+                "O aplicativo cronometra sozinho, à medida que você usa. Depois "
+                "de três respostas da IA e três células executadas, ele passa a "
+                "avisar na barra de espera quanto aquilo costuma levar aqui.")
+            return
+
+        partes = ["Medido neste computador, com o seu uso:\n"]
+        for linha in linhas:
+            if not linha["medicoes"]:
+                partes.append(f"• {linha['o_que']}: ainda sem medições")
+                continue
+            partes.append(
+                f"• {linha['o_que']}\n"
+                f"     normalmente {linha['tipico']}; nas vezes lentas, "
+                f"{linha['demorado']}\n"
+                f"     ({linha['medicoes']} medições)")
+        partes.append(
+            "\nNada disso sai daqui: os tempos ficam num arquivo na pasta do "
+            "aplicativo e servem só para a barra de espera saber o que dizer.")
+        QMessageBox.information(self, "Quanto costuma demorar",
+                                "\n".join(partes))
 
     def _verificar_agora(self) -> None:
         janela = self.parent()
