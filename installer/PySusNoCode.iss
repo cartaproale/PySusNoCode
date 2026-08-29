@@ -85,7 +85,11 @@ Source: "exemplos\*"; DestDir: "{app}\exemplos"; Flags: recursesubdirs createall
 #ifdef OFFLINE
 ; Todas as bibliotecas, em .whl. A presenca desta pasta e o que faz o
 ; bootstrap.ps1 instalar sem tocar na internet.
-Source: "vendor\wheels\*"; DestDir: "{app}\vendor\wheels"; Flags: recursesubdirs
+; nocompression: os .whl ja sao zips. Passa-los pelo LZMA nao encolhe nada e
+; derruba o compilador — a wheel do claude-agent-sdk tem 92 MB e carrega um
+; claude.exe de 207 MB dentro; comprimir isso estourou o islzma.dll duas vezes
+; seguidas na 1.8.22, e na 1.8.20 so passou depois de 3,6 horas de compilacao.
+Source: "vendor\wheels\*"; DestDir: "{app}\vendor\wheels"; Flags: recursesubdirs nocompression
 #endif
 
 [Icons]
