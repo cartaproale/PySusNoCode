@@ -30,11 +30,29 @@ $marker = Join-Path $root ".ambiente-ok"
 $wheels = Join-Path $root "vendor\wheels"
 $offline = Test-Path $wheels
 
-$logDir = Join-Path $env:APPDATA "PySusNoCode"
+# Onde gravar o registro. APPDATA pode nao estar definido no ambiente em que o
+# instalador executa este script; sem uma alternativa, $logDir viraria um
+# caminho relativo e o registro iria parar em lugar nenhum. Ja aconteceu: as
+# instalacoes de 25 a 28/08/2026 rodaram sem deixar uma linha sequer, e a
+# investigacao ficou sem o unico registro que importava.
+$logDir = if ($env:APPDATA) {
+    Join-Path $env:APPDATA "PySusNoCode"
+} elseif ($env:USERPROFILE) {
+    Join-Path $env:USERPROFILE "AppData\Roaming\PySusNoCode"
+} else {
+    Join-Path $root "registro"
+}
 New-Item -ItemType Directory -Force $logDir -ErrorAction SilentlyContinue | Out-Null
 $log = Join-Path $logDir "instalacao.log"
-"=== $(Get-Date -Format s) - preparando ambiente em $root ===" |
-    Out-File -FilePath $log -Append -Encoding UTF8
+try {
+    "=== $(Get-Date -Format s) - preparando ambiente em $root ===" |
+        Out-File -FilePath $log -Append -Encoding UTF8 -ErrorAction Stop
+} catch {
+    # Sem registro em arquivo, ao menos a tela diz onde ele deveria estar.
+    Write-Host "AVISO: nao consegui gravar o registro em $log ($($_.Exception.Message))" `
+        -ForegroundColor Yellow
+}
+Write-Host "Registro desta instalacao: $log" -ForegroundColor DarkGray
 
 function Escrever($texto, $cor = "Gray") {
     Write-Host $texto -ForegroundColor $cor
@@ -155,6 +173,15 @@ if ($offline) {
 $requisitos = Join-Path $root "app\requirements.txt"
 $argumentos = @(
     "-m", "pip", "install",
+    # Sem --upgrade, o pip nao mexe no que ja satisfaz o requisito: como quase
+    # tudo aqui usa piso (>=), quem instalava uma versao nova do aplicativo
+    # continuava com as bibliotecas da primeira instalacao. Foi o que
+    # aconteceu ate a 1.8.17: o aplicativo estava na 1.8.17 e o
+    # claude-agent-sdk parado na 0.2.143, cinco versoes atras, com um
+    # claude.exe embutido de cinco dias antes. Correcoes das bibliotecas nunca
+    # chegavam a quem ja tinha instalado, e o instalador Completo carregava
+    # rodas novas que eram ignoradas.
+    "--upgrade",
     "--only-binary=:all:",       # nunca compilar: veja a nota no topo
     "--no-warn-script-location",
     "--disable-pip-version-check",
