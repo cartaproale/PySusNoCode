@@ -5,8 +5,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+# O ':12' final e opcional e significa SUBSTITUA a celula 12. Sem ele, a
+# celula e acrescentada ao fim, que era o unico comportamento ate a 1.8.23.
 _CELL_RE = re.compile(
-    r"###\s*CELULA\s*:\s*(codigo|texto)\s*###\s*\n(.*?)\n?\s*###\s*FIM\s*###",
+    r"###\s*CELULA\s*:\s*(codigo|texto)\s*(?::\s*(\d+)\s*)?###\s*\n"
+    r"(.*?)\n?\s*###\s*FIM\s*###",
     re.DOTALL | re.IGNORECASE,
 )
 _LESSON_RE = re.compile(
@@ -20,6 +23,9 @@ _FENCE_RE = re.compile(r"^```[a-zA-Z]*\s*\n(.*)\n```\s*$", re.DOTALL)
 class ParsedCell:
     kind: str      # "code" | "markdown"
     source: str
+    # Posição (base 1) da célula a SUBSTITUIR, quando a IA endereçou uma.
+    # None significa acrescentar ao fim.
+    alvo: int | None = None
 
 
 @dataclass
@@ -50,10 +56,17 @@ def parse_response(
 
     def _cell_placeholder(match: re.Match) -> str:
         kind = "code" if match.group(1).lower() == "codigo" else "markdown"
-        source = _strip_fence(match.group(2)).strip("\n")
-        cells.append(ParsedCell(kind=kind, source=source))
+        alvo = int(match.group(2)) if match.group(2) else None
+        source = _strip_fence(match.group(3)).strip("\n")
+        cells.append(ParsedCell(kind=kind, source=source, alvo=alvo))
         label = "código" if kind == "code" else "texto"
-        numero = numero_inicial + len(cells) - 1
+        if alvo is not None:
+            # Quem endereçou a célula diz o número dela, não a posição na fila.
+            return f"\n📋 *célula de {label} nº{alvo} substituída*\n"
+        # Só as que serão acrescentadas ocupam posição nova no fim: uma
+        # substituição não empurra a numeração das seguintes.
+        acrescentadas = sum(1 for c in cells if c.alvo is None)
+        numero = numero_inicial + acrescentadas - 1
         return f"\n📋 *célula de {label} nº{numero} {verbo} notebook*\n"
 
     remainder = _CELL_RE.sub(_cell_placeholder, text)

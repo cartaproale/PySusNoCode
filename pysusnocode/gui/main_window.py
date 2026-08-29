@@ -61,6 +61,7 @@ from .flow_layout import FlowLayout
 from .notebook_panel import NotebookPanel
 from .settings_dialog import SettingsDialog
 from .. import tempos
+from ..contexto import montar_pedido
 from .workers import CellRunWorker, KernelStartWorker, LLMWorker, UpdateCheckWorker
 
 PHASE_IDLE = "idle"
@@ -336,6 +337,14 @@ class MainWindow(QMainWindow):
         if index < 0:
             return None
         return self.model_combo.itemData(index)
+
+    def _titulo_do_notebook(self) -> str:
+        """Nome do que esta aberto, so para a IA se situar."""
+        caminho = getattr(self, "current_path", None)
+        try:
+            return Path(caminho).name if caminho else ""
+        except Exception:  # noqa: BLE001
+            return ""
 
     def _system_prompt(self) -> str:
         return build_system_prompt(self.lessons.for_prompt())
@@ -992,14 +1001,16 @@ class MainWindow(QMainWindow):
             return
         self.chat.add_user(text)
         self._mark_dirty()
-        prompt = text
-        if self.exec_notes:
-            notes = "\n".join(self.exec_notes[-6:])
-            prompt = (
-                f"(Contexto do aplicativo — resultados de execuções recentes:\n{notes})\n\n"
-                f"Pedido do usuário: {text}"
-            )
-            self.exec_notes = []
+        # A IA precisa VER o notebook para poder falar dele. Sem isto ela
+        # respondia "nao consigo enxergar essa celula daqui" e pedia ao
+        # usuario para colar o conteudo — que era literalmente verdade.
+        prompt = montar_pedido(
+            text,
+            notebook=self.notebook,
+            notas=self.exec_notes[-6:] if self.exec_notes else None,
+            titulo=self._titulo_do_notebook(),
+        )
+        self.exec_notes = []
         self._start_llm_turn(prompt, self._com_estimativa(
             f"O {self._assistant()} está pensando…", tempos.IA,
             str(self._current_model() or "")))
@@ -1054,9 +1065,10 @@ class MainWindow(QMainWindow):
 
         ran_anything = False
         for parsed_cell in parsed.cells:
-            cell = self.notebook.add(parsed_cell.kind, parsed_cell.source)
-            self.notebook_panel.add_cell(cell)
-            if parsed_cell.kind == "code" and self.autotest_check.isChecked():
+            cell = self._aplicar_celula(parsed_cell)
+            if cell is None:
+                continue
+            if cell.kind == "code" and self.autotest_check.isChecked():
                 self.pending_queue.append(cell)
                 ran_anything = True
 
@@ -1321,6 +1333,59 @@ class MainWindow(QMainWindow):
         self._start_llm_turn(prompt, self._com_estimativa(
             f"O {self._assistant()} está corrigindo a célula {index}…",
             tempos.IA, str(self._current_model() or "")))
+
+    def _aplicar_celula(self, parsed_cell):
+        """Acrescenta a celula, ou substitui a que a IA enderecou.
+
+        Ate a 1.8.23 so existia acrescentar: toda resposta ia para o fim do
+        notebook, e nao havia como atender "edite a celula que ja existe". O
+        endereco vem no proprio marcador (###CELULA:codigo:12###).
+
+        Substituir e a operacao que pode destruir trabalho, entao ela e
+        defensiva: indice fora da faixa vira acrescimo com aviso, o texto
+        anterior fica guardado para desfazer, e a celula volta ao estado de
+        NAO EXECUTADA — para ninguem confundir codigo novo com saida velha,
+        que e um erro que ja nos custou caro no repositorio de exemplos.
+        """
+        alvo = getattr(parsed_cell, "alvo", None)
+        if alvo is None:
+            cell = self.notebook.add(parsed_cell.kind, parsed_cell.source)
+            self.notebook_panel.add_cell(cell)
+            return cell
+
+        total = len(self.notebook.cells)
+        if not 1 <= alvo <= total:
+            self.chat.add_app_note(
+                f"⚠ O {self._assistant()} pediu para substituir a célula {alvo}, "
+                f"mas o notebook tem {total}. Acrescentei ao fim, para não "
+                "apagar nada por engano.")
+            cell = self.notebook.add(parsed_cell.kind, parsed_cell.source)
+            self.notebook_panel.add_cell(cell)
+            return cell
+
+        cell = self.notebook.cells[alvo - 1]
+        if cell.kind != parsed_cell.kind:
+            self.chat.add_app_note(
+                f"⚠ A célula {alvo} é de "
+                f"{'código' if cell.kind == 'code' else 'texto'} e veio uma de "
+                f"{'código' if parsed_cell.kind == 'code' else 'texto'}. "
+                "Acrescentei ao fim em vez de trocar o tipo.")
+            nova = self.notebook.add(parsed_cell.kind, parsed_cell.source)
+            self.notebook_panel.add_cell(nova)
+            return nova
+
+        self._desfazer = (cell, cell.source, cell.status, list(cell.outputs))
+        cell.source = parsed_cell.source
+        cell.outputs = []
+        cell.execution_count = None
+        cell.status = STATUS_NEW
+        widget = self.notebook_panel.widget_for(cell)
+        if widget:
+            widget.refresh()
+            widget.render_outputs()
+            self.notebook_panel.scroll_to_widget(widget)
+        self._mark_dirty()
+        return cell
 
     def _apply_fix(self, parsed) -> None:
         cell = self.fixing_cell
