@@ -82,7 +82,9 @@ Source: "..\LICENSE"; DestDir: "{app}"
 Source: "..\TERCEIROS.md"; DestDir: "{app}"
 Source: "bootstrap.ps1"; DestDir: "{app}"
 Source: "assets\pysusnocode.ico"; DestDir: "{app}"
-Source: "vendor\python-embed-amd64.zip"; DestDir: "{app}\vendor"
+; Tambem um zip: comprimir de novo so gasta memoria do compressor, que
+; ja estourou duas vezes hoje no islzma.dll.
+Source: "vendor\python-embed-amd64.zip"; DestDir: "{app}\vendor"; Flags: nocompression
 Source: "vendor\get-pip.py"; DestDir: "{app}\vendor"
 ; Notebooks de exemplo, ~3 MB. Vao nas duas versoes do instalador: e o que faz
 ; a lista de exemplos abrir na hora e funcionar sem internet.
