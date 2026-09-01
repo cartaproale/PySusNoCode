@@ -687,7 +687,7 @@ class MainWindow(QMainWindow):
 
     def on_settings(self) -> None:
         modelo_antes = (self.config["openai_custom_model"] or "").strip()
-        dialog = SettingsDialog(self.config, self)
+        dialog = SettingsDialog(self.config, self, lessons=self.lessons)
         if dialog.exec():
             self.backend = make_backend(self.config)
             self.autotest_check.setChecked(bool(self.config["autotest"]))
@@ -719,6 +719,10 @@ class MainWindow(QMainWindow):
                         "da barra acima para a API da OpenAI / GPT."
                     )
 
+            self._update_status()
+        else:
+            # O botão de esquecer lições age NA HORA, não no Salvar: mesmo com
+            # o diálogo cancelado, a contagem da barra precisa refletir.
             self._update_status()
 
     def on_new_conversation(self) -> None:

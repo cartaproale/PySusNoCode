@@ -94,9 +94,10 @@ class _TesteOpenAIWorker(QThread):
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, config: Config, parent=None):
+    def __init__(self, config: Config, parent=None, lessons=None):
         super().__init__(parent)
         self.config = config
+        self.lessons = lessons
         self.setWindowTitle("Configurações — PySusNoCode")
         self.setMinimumWidth(520)
 
@@ -227,6 +228,25 @@ class SettingsDialog(QDialog):
         self.licencas_btn.clicked.connect(self._abrir_licencas)
         form.addRow("", self.licencas_btn)
 
+        # --- o botao de voltar ao conhecimento de fabrica ----------------
+        # O aplicativo aprende licoes com os erros corrigidos nesta maquina, e
+        # elas entram nos prompts. Aprendizado local envelhece: uma licao
+        # contra uma versao antiga da PySUS pode estar errada na atual — e o
+        # usuario merece o botao de recomecar so com a base desta versao.
+        aprendidas = len(self.lessons.aprendidas()) if self.lessons else 0
+        self.esquecer_btn = QPushButton(
+            f"🧹 Esquecer o que foi aprendido aqui ({aprendidas})"
+        )
+        self.esquecer_btn.setToolTip(
+            "Apaga as lições que o aplicativo aprendeu nesta máquina com os "
+            "erros corrigidos, voltando à base de conhecimento padrão desta "
+            "versão. As lições pré-carregadas (que vêm com o aplicativo) "
+            "continuam. Não afeta notebooks, configurações nem a chave de API."
+        )
+        self.esquecer_btn.setEnabled(self.lessons is not None)
+        self.esquecer_btn.clicked.connect(self._esquecer_aprendidas)
+        form.addRow("", self.esquecer_btn)
+
         self.timeout_spin = QSpinBox()
         self.timeout_spin.setRange(30, 3600)
         self.timeout_spin.setSingleStep(30)
@@ -331,6 +351,38 @@ class SettingsDialog(QDialog):
             "aplicativo e servem só para a barra de espera saber o que dizer.")
         QMessageBox.information(self, "Quanto costuma demorar",
                                 "\n".join(partes))
+
+    def _esquecer_aprendidas(self) -> None:
+        from PySide6.QtWidgets import QMessageBox
+
+        if self.lessons is None:
+            return
+        quantas = len(self.lessons.aprendidas())
+        if quantas == 0:
+            QMessageBox.information(
+                self, "Nada a esquecer",
+                "Este aplicativo ainda não aprendeu nenhuma lição local — "
+                "você já está na base de conhecimento padrão.",
+            )
+            return
+        resposta = QMessageBox.question(
+            self, "Esquecer as lições aprendidas?",
+            f"Apagar as {quantas} lições que o aplicativo aprendeu nesta "
+            "máquina?\n\nAs lições pré-carregadas desta versão continuam — "
+            "é a volta ao estado original do conhecimento. Isso não pode ser "
+            "desfeito.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+        )
+        if resposta != QMessageBox.Yes:
+            return
+        apagadas = self.lessons.esquecer_aprendidas()
+        self.esquecer_btn.setText("🧹 Esquecer o que foi aprendido aqui (0)")
+        QMessageBox.information(
+            self, "Pronto",
+            f"{apagadas} lições aprendidas foram apagadas. O aplicativo está "
+            f"de volta à base padrão, com {self.lessons.count()} lições "
+            "desta versão.",
+        )
 
     def _abrir_licencas(self) -> None:
         from ..licencas import resumo, onde_estao
