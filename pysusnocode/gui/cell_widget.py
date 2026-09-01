@@ -157,6 +157,16 @@ class CellWidget(QFrame):
             self.run_btn = None
             self.fix_btn = None
             self.zoom_btn = None
+            # Célula de texto abre RENDERIZADA, como no Jupyter. O usuário via
+            # "## Verificação de sanidade" com a cerquilha crua — a marcação
+            # markdown aparecia como texto. O botão alterna para o editor.
+            self.edit_btn = QPushButton("✏️ Editar")
+            self.edit_btn.setToolTip(
+                "Editar o texto desta célula (markdown). Clique de novo para "
+                "voltar à visualização."
+            )
+            self.edit_btn.clicked.connect(self._toggle_md_edit)
+            header.addWidget(self.edit_btn)
 
         copy_btn = QPushButton("📋 Copiar")
         copy_btn.setToolTip("Copiar o conteúdo desta célula (para o Colab, por exemplo)")
@@ -176,6 +186,12 @@ class CellWidget(QFrame):
         self.editor.textChanged.connect(self._on_edited)
         layout.addWidget(self.editor)
 
+        # A visão renderizada do markdown nasce DEPOIS do output_view: o
+        # eventFilter consulta os dois, e instalar o filtro antes de o
+        # output_view existir estourava AttributeError já no __init__.
+        self.md_view: QTextBrowser | None = None
+        self._md_editando = False
+
         self.output_view = QTextBrowser()
         self.output_view.setVisible(False)
         self.output_view.setToolTip(
@@ -183,6 +199,16 @@ class CellWidget(QFrame):
         )
         self.output_view.viewport().installEventFilter(self)
         layout.addWidget(self.output_view)
+
+        if not is_code:
+            # Célula de texto abre renderizada, como no Jupyter; duplo clique
+            # na visão (ou o botão ✏️) entra no modo de edição.
+            self.md_view = QTextBrowser()
+            self.md_view.setOpenExternalLinks(True)
+            self.md_view.viewport().installEventFilter(self)
+            layout.addWidget(self.md_view)
+            self.editor.setVisible(False)
+            self._render_markdown()
 
         self.apply_appearance(self.t, self.font_px)
 
@@ -197,7 +223,54 @@ class CellWidget(QFrame):
         ):
             self.open_output_dialog()
             return True
+        if (
+            self.md_view is not None
+            and obj is self.md_view.viewport()
+            and event.type() == QEvent.MouseButtonDblClick
+        ):
+            self._toggle_md_edit()
+            return True
         return super().eventFilter(obj, event)
+
+    # ------------------------------------------------------------------
+    # Markdown das células de texto
+    # ------------------------------------------------------------------
+    def _render_markdown(self) -> None:
+        if self.md_view is None:
+            return
+        from PySide6.QtGui import QTextDocument
+
+        self.md_view.document().setMarkdown(
+            self.cell.source, QTextDocument.MarkdownDialectGitHub
+        )
+        self._ajustar_altura_md()
+
+    def _toggle_md_edit(self) -> None:
+        if self.md_view is None:
+            return
+        # Estado explícito, e não isVisible(): antes do show() do Qt a
+        # visibilidade responde False mesmo depois de setVisible(True).
+        self._md_editando = not self._md_editando
+        if not self._md_editando:
+            # sair da edição: renderiza o que ficou e volta à leitura
+            self.edit_btn.setText("✏️ Editar")
+            self.editor.setVisible(False)
+            self._render_markdown()
+            self.md_view.setVisible(True)
+        else:
+            self.edit_btn.setText("👁 Visualizar")
+            self.md_view.setVisible(False)
+            self.editor.setVisible(True)
+            self._adjust_editor_height()
+            self.editor.setFocus()
+
+    def _ajustar_altura_md(self) -> None:
+        doc = self.md_view.document()
+        doc.setTextWidth(max(200, self.md_view.viewport().width() or 640))
+        alto = int(doc.size().height()) + 14
+        metrics = QFontMetrics(self.md_view.font())
+        teto = int(self.MAX_LINHAS * metrics.lineSpacing()) + 14
+        self.md_view.setFixedHeight(max(40, min(alto, teto)))
 
     def open_output_dialog(self) -> None:
         if not self.cell.outputs:
@@ -240,6 +313,14 @@ class CellWidget(QFrame):
             f"QTextBrowser{{background:{t['output_bg']};color:{t['output_fg']};"
             f"border:1px solid {t['editor_border']};border-radius:4px;}}"
         )
+        if self.md_view is not None:
+            # Texto renderizado se lê em fonte de leitura, não em Consolas.
+            self.md_view.setFont(QFont("Segoe UI", max(9, int(font_px * 0.8))))
+            self.md_view.setStyleSheet(
+                f"QTextBrowser{{background:{t['editor_bg_md']};"
+                f"color:{t['editor_fg']};border:none;padding:2px;}}"
+            )
+            self._render_markdown()
         self._adjust_editor_height()
         self.refresh()
 
@@ -302,6 +383,10 @@ class CellWidget(QFrame):
         self.editor.setPlainText(source)
         self.editor.blockSignals(False)
         self._adjust_editor_height()
+        # Se a IA reescreveu uma célula de texto, a visão renderizada precisa
+        # acompanhar — senão o usuário continua lendo a versão velha.
+        if self.md_view is not None and not self._md_editando:
+            self._render_markdown()
 
     # ------------------------------------------------------------------
     def refresh(self) -> None:

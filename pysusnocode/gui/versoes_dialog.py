@@ -78,6 +78,17 @@ class VersoesDialog(QDialog):
         )
         layout.addWidget(self.tabela_fontes)
 
+        # Como (e quando) os exemplos foram validados — a resposta à pergunta
+        # "posso confiar nesses notebooks?", escrita onde o usuário procura
+        # por procedência. Os números vêm do exemplos.json, que carrega o
+        # resumo do VALIDACAO.md gerado a cada validação completa.
+        layout.addWidget(QLabel("<b>Como os exemplos são validados</b>"))
+        self.validacao_label = QLabel()
+        self.validacao_label.setWordWrap(True)
+        self.validacao_label.setOpenExternalLinks(True)
+        self.validacao_label.setText(self._texto_validacao())
+        layout.addWidget(self.validacao_label)
+
         self.resumo = QLabel("Consultando…")
         self.resumo.setWordWrap(True)
         layout.addWidget(self.resumo)
@@ -99,6 +110,38 @@ class VersoesDialog(QDialog):
         self.consultar()
 
     # ------------------------------------------------------------------
+    @staticmethod
+    def _texto_validacao() -> str:
+        from .. import exemplos as cat
+
+        val = dict(cat.RESUMO_VALIDACAO)
+        if not val:
+            # o catálogo ainda não foi carregado nesta sessão: lê a cópia local
+            try:
+                cat.carregar_catalogo(preferir_github=False)
+                val = dict(cat.RESUMO_VALIDACAO)
+            except Exception:  # noqa: BLE001
+                val = {}
+        cabeca = ""
+        if val.get("data"):
+            cabeca = (
+                f"Última validação completa: <b>{val['data']}</b> — "
+                f"<b>{val.get('funcionando', '?')} de {val.get('total', '?')}</b> "
+                f"notebooks funcionando, contra a PySUS "
+                f"{val.get('versao_pysus', '?')}.<br>"
+            )
+        relatorio = f"{cat.PAGINA}/blob/{cat.RAMO}/VALIDACAO.md"
+        return (
+            cabeca
+            + "Cada exemplo passa por: <b>execução real</b> de todas as células, "
+            "baixando dados do DATASUS; <b>verificação de sanidade</b> no fim do "
+            "notebook (faixas plausíveis, somas que fecham); <b>sentinelas</b> — "
+            "valores-chave comparados entre validações, para pegar deriva; "
+            "<b>recontagem independente</b> dos indicadores por uma segunda "
+            "fórmula; e <b>valores-ouro</b> conferidos contra TABNET e IBGE/SIDRA. "
+            f"<a href='{relatorio}'>Relatório completo, notebook a notebook</a>."
+        )
+
     @staticmethod
     def _nova_tabela(colunas: list[str]) -> QTableWidget:
         t = QTableWidget(0, len(colunas))

@@ -115,6 +115,15 @@ class ExemplosDialog(QDialog):
             "Ao abrir, o notebook entra no aplicativo e você pode executá-lo, "
             "mudar o estado e o ano, ou pedir alterações no chat."
         )
+        val = cat.RESUMO_VALIDACAO
+        if val.get("data"):
+            texto += (
+                f"<br>🔬 Última validação completa: <b>{val['data']}</b> — "
+                f"{val.get('funcionando', '?')} de {val.get('total', '?')} "
+                f"funcionando, com PySUS {val.get('versao_pysus', '?')}. "
+                "Um exemplo reprovado quase sempre indica mudança na fonte de "
+                "dados, e fica marcado com ⚠ até a validação seguinte."
+            )
         if aviso:
             texto += f"<br><span style='color:#b5495b;'>⚠ {aviso}</span>"
         self.cabecalho.setText(texto)
@@ -126,7 +135,10 @@ class ExemplosDialog(QDialog):
             pai.setFont(0, negrito)
             pai.setFlags(pai.flags() & ~Qt.ItemIsSelectable)
             for item in itens:
-                filho = QTreeWidgetItem(pai, [item.get("titulo", item["arquivo"])])
+                titulo = item.get("titulo", item["arquivo"])
+                if (item.get("validacao") or {}).get("situacao") == "falha":
+                    titulo = f"⚠ {titulo}"
+                filho = QTreeWidgetItem(pai, [titulo])
                 filho.setData(0, Qt.UserRole, item)
                 filho.setToolTip(0, item.get("descricao", ""))
             pai.setExpanded(True)
@@ -152,7 +164,26 @@ class ExemplosDialog(QDialog):
         if dados.get("tempo"):
             ficha.append(f"Tempo estimado: {dados['tempo']}")
 
+        # O veredito da última validação, por exemplo — quem escolhe merece
+        # saber se o notebook passou no teste com dados reais, e quando.
+        val = dados.get("validacao") or {}
+        data_val = cat.RESUMO_VALIDACAO.get("data", "")
+        if val.get("situacao") == "ok":
+            selo = (f"<p style='color:#1c6a48;font-size:{self.font_px}px;'>"
+                    f"✅ Validado com dados reais do DATASUS"
+                    + (f" em {data_val}" if data_val else "") + ".</p>")
+        elif val.get("situacao") == "falha":
+            motivo = val.get("detalhe", "")
+            selo = (f"<p style='color:#b5495b;font-size:{self.font_px}px;'>"
+                    f"⚠ Reprovado na última validação"
+                    + (f" ({data_val})" if data_val else "") + " — quase sempre "
+                    "mudança na fonte de dados, não no notebook."
+                    + (f"<br><code>{motivo}</code>" if motivo else "") + "</p>")
+        else:
+            selo = ""
+
         endereco = f"{cat.PAGINA}/blob/{cat.RAMO}/{dados['arquivo']}"
+        validacao_url = f"{cat.PAGINA}/blob/{cat.RAMO}/VALIDACAO.md"
         self.detalhe.setHtml(
             f"<div style='font-size:{self.font_px + 3}px;'>"
             f"<h2 style='margin-bottom:6px;'>{dados.get('titulo','')}</h2>"
@@ -160,8 +191,10 @@ class ExemplosDialog(QDialog):
             f"<p style='color:#6b7280;font-size:{self.font_px}px;'>"
             + " · ".join(ficha)
             + "</p>"
-            f"<p style='font-size:{self.font_px}px;'>Arquivo: <code>{dados['arquivo']}</code><br>"
-            f"<a href='{endereco}'>Ver este notebook no GitHub</a></p></div>"
+            + selo
+            + f"<p style='font-size:{self.font_px}px;'>Arquivo: <code>{dados['arquivo']}</code><br>"
+            f"<a href='{endereco}'>Ver este notebook no GitHub</a> · "
+            f"<a href='{validacao_url}'>relatório de validação completo</a></p></div>"
         )
 
     def _abrir_se_exemplo(self, item, _coluna) -> None:

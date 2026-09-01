@@ -205,7 +205,12 @@ class ChatPanel(QWidget):
         self.add_html("assistant", self._md_to_html(text))
 
     def add_app_note(self, text: str) -> None:
-        self.add_html("app", html.escape(text).replace("\n", "<br>"))
+        # As notas do aplicativo passam pelo MESMO conversor de markdown das
+        # respostas da IA. Antes elas eram só escapadas, e as duas notas que
+        # traziam <b>/<br> apareciam com as tags cruas na conversa — o usuário
+        # viu e mandou o print. Regra: nota de app escreve **markdown**, nunca
+        # HTML; o conversor escapa HTML primeiro, então tag crua nunca vaza.
+        self.add_html("app", self._md_to_html(text))
 
     def add_error(self, text: str) -> None:
         self.add_html("error", html.escape(text).replace("\n", "<br>"))

@@ -599,8 +599,8 @@ class MainWindow(QMainWindow):
         if escolhido is so_baixar:
             webbrowser.open(PAGINA_RELEASE)
             self.chat.add_app_note(
-                "Abri a página de download no navegador. <b>Feche o PySusNoCode "
-                "antes de executar o instalador</b> — instalar com o programa "
+                "Abri a página de download no navegador. **Feche o PySusNoCode "
+                "antes de executar o instalador** — instalar com o programa "
                 "aberto pode deixar arquivos velhos para trás e abrir duas "
                 "janelas depois."
             )
@@ -881,12 +881,23 @@ class MainWindow(QMainWindow):
             if origem == cat.ORIGEM_GITHUB
             else "aberto da cópia que veio no instalador"
         )
+        validacao = escolhido.get("validacao") or {}
+        if validacao.get("situacao") == "falha":
+            detalhe = validacao.get("detalhe") or "ver o VALIDACAO.md no repositório"
+            aviso_val = (
+                "\n\n⚠️ **Na última validação este exemplo falhou** — quase "
+                "sempre por mudança na fonte de dados, não no notebook. "
+                f"Diagnóstico registrado: {detalhe}"
+            )
+        else:
+            aviso_val = ""
         self.chat.add_app_note(
-            f"📚 Exemplo aberto: <b>{escolhido.get('titulo','')}</b> "
-            f"({len(self.notebook.cells)} células, {procedencia}).<br><br>"
+            f"📚 Exemplo aberto: **{escolhido.get('titulo','')}** "
+            f"({len(self.notebook.cells)} células, {procedencia}).\n\n"
             "As saídas que você vê são as da última validação. Para rodar com "
             "dados de agora, clique em “▶▶ Executar tudo”. Se quiser adaptar — "
             "outro estado, outro ano, outro recorte — é só pedir aqui no chat."
+            + aviso_val
         )
         self.exec_notes.append(
             f"O usuário abriu o exemplo pronto “{escolhido.get('titulo','')}” "

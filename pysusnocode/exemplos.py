@@ -69,6 +69,13 @@ def _baixar(url: str, espera: int) -> bytes:
         return resposta.read()
 
 
+# Preenchido a cada carga do catálogo: {"data", "funcionando", "total",
+# "versao_pysus"}. É o resumo do VALIDACAO.md que o gerar_catalogo.py embute
+# no exemplos.json — a interface o mostra para o usuário saber CONTRA O QUÊ
+# cada exemplo foi validado, e quando.
+RESUMO_VALIDACAO: dict = {}
+
+
 def carregar_catalogo(preferir_github: bool = True) -> tuple[list[dict], str, str]:
     """Devolve (exemplos, origem, aviso).
 
@@ -79,6 +86,8 @@ def carregar_catalogo(preferir_github: bool = True) -> tuple[list[dict], str, st
     if preferir_github:
         try:
             dados = json.loads(_baixar(URL_CATALOGO, ESPERA_CATALOGO).decode("utf-8"))
+            RESUMO_VALIDACAO.clear()
+            RESUMO_VALIDACAO.update(dados.get("validacao", {}))
             return dados.get("exemplos", []), ORIGEM_GITHUB, ""
         except Exception as erro:  # noqa: BLE001
             problema = str(erro)
@@ -91,6 +100,8 @@ def carregar_catalogo(preferir_github: bool = True) -> tuple[list[dict], str, st
             if problema:
                 aviso = ("Não consegui falar com o GitHub agora, então esta é a "
                          "lista que veio no instalador.")
+            RESUMO_VALIDACAO.clear()
+            RESUMO_VALIDACAO.update(dados.get("validacao", {}))
             return dados.get("exemplos", []), ORIGEM_LOCAL, aviso
         except Exception:  # noqa: BLE001
             pass
